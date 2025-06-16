@@ -1,5 +1,6 @@
 using UnityEngine;
-
+using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 
 public class GameManager : MonoBehaviour
 {
@@ -17,7 +18,28 @@ public class GameManager : MonoBehaviour
 
     // Game states
     public enum GameState { GameEntry, GamePause, WhiteTurn, BlackTurn, GameEnd }
-    public GameState CurrentState { get; private set; }
+    private GameState CurrentState;
+
+    // Camera
+    private bool isDraggingCamera = false;
+    private Vector2 lastMousePosition;
+
+    [Header("Camera Spherical Coordinates")]
+    public float radius;
+    public float theta, phi; // horizontal angle 0-360, vertical angle
+
+    [Header("Camera Control Settings")]
+    public float mouseSensitivity;
+    public float scrollSensitivity;
+    public float keyZoomSpeed, keyThetaSpeed, keyPhiSpeed;
+    public float minPhi, maxPhi, minRadius, maxRadius;
+
+    // chess board
+    // 4*4*4, X from L to R, Y from B to T, Z from F to B, same as Unity's coordinate system
+    ChessPiece[,,] chessBoard;
+    [Header("Chess Board Settings")]
+    public float separation; // separation between chess pieces
+    private ChessPiece pointedPiece;
 
     // chess pieces
     ChessPiece KingW, KingD,
@@ -28,12 +50,8 @@ public class GameManager : MonoBehaviour
     PawnW1, PawnW2, PawnW3, PawnW4, PawnW5, PawnW6, PawnW7, PawnW8,
     PawnD1, PawnD2, PawnD3, PawnD4, PawnD5, PawnD6, PawnD7, PawnD8;
 
-    // chess board
-    // 4*4*4, X from L to R, Y from B to T, Z from F to B, same as Unity's coordinate system
-    ChessPiece[,,] chessBoard;
-    public float separation = 2.5f; // separation between chess pieces
-
     // --------------------------------------------------------------------------
+
 
     void OnEnable()
     {
@@ -107,6 +125,9 @@ public class GameManager : MonoBehaviour
                             z * separation - 1.5f * separation
                         );
                         chessBoard[x, y, z].SetPosition(p);
+                        chessBoard[x, y, z].chessX = x;
+                        chessBoard[x, y, z].chessY = y;
+                        chessBoard[x, y, z].chessZ = z;
                     }
                 }
             }
@@ -118,6 +139,100 @@ public class GameManager : MonoBehaviour
         ChangeState(GameState.GameEntry);
     }
 
+    void Update()
+    {
+        PointerControl();
+        KeyboardControl();
+    }
+
+    private void PointerControl()
+    {
+        // Pointing at UI
+        if (EventSystem.current.IsPointerOverGameObject()) return;
+
+        Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
+        RaycastHit hit;
+        // Pointing to a chess piece
+        if (Physics.Raycast(ray, out hit))
+        {
+            // Highlight the piece
+            ChessPiece hitPiece = hit.collider.GetComponent<ChessPiece>();
+            if (pointedPiece != hitPiece && pointedPiece != null)
+                pointedPiece.SetHighLight(false);
+            pointedPiece = hitPiece;
+            hitPiece.SetHighLight(true);
+        }
+        else // pointing to empty space
+        {
+            if (pointedPiece != null)
+            {
+                pointedPiece.SetHighLight(false);
+                pointedPiece = null;
+            }
+
+            if (isDraggingCamera)
+            {
+                Vector2 currentMousePosition = Mouse.current.position.ReadValue();
+                Vector2 delta = currentMousePosition - lastMousePosition;
+
+                theta -= delta.x * mouseSensitivity;
+                theta %= 360;
+                phi += delta.y * mouseSensitivity;
+                phi = Mathf.Clamp(phi, minPhi, maxPhi);
+
+                SetCamera(radius, theta, phi);
+
+                lastMousePosition = currentMousePosition;
+            }
+            else if (Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                isDraggingCamera = true;
+                lastMousePosition = Mouse.current.position.ReadValue();
+            }
+
+            if (Mouse.current.leftButton.wasReleasedThisFrame)
+            {
+                isDraggingCamera = false;
+            }
+        }
+    }
+
+    private void KeyboardControl()
+    {
+        if (Keyboard.current == null) return;
+
+        // onclick pause button
+        if (Keyboard.current.escapeKey.wasPressedThisFrame)
+        {
+
+        }
+
+        // zoom camera: R, F
+        if (Keyboard.current.rKey.isPressed)
+            radius -= keyZoomSpeed * Time.deltaTime;
+
+        if (Keyboard.current.fKey.isPressed)
+            radius += keyZoomSpeed * Time.deltaTime;
+
+        // rotate camera: A, D, W, S or Arrow keys
+        if (Keyboard.current.leftArrowKey.isPressed || Keyboard.current.aKey.isPressed)
+            theta -= keyThetaSpeed * Time.deltaTime;
+
+        if (Keyboard.current.rightArrowKey.isPressed || Keyboard.current.dKey.isPressed)
+            theta += keyThetaSpeed * Time.deltaTime;
+
+        if (Keyboard.current.upArrowKey.isPressed || Keyboard.current.wKey.isPressed)
+            phi -= keyPhiSpeed * Time.deltaTime;
+
+        if (Keyboard.current.downArrowKey.isPressed || Keyboard.current.sKey.isPressed)
+            phi += keyPhiSpeed * Time.deltaTime;
+
+        radius = Mathf.Clamp(radius, minRadius, maxRadius);
+        theta %= 360;
+        phi = Mathf.Clamp(phi, minPhi, maxPhi);
+
+        SetCamera(radius, theta, phi);
+    }
 
     public void ChangeState(GameState newState)
     {
@@ -150,8 +265,19 @@ public class GameManager : MonoBehaviour
     private void SetupGame()
     {
         // Let the camera sweep across the board
-
+        SetCamera(radius, theta, phi);
         ChangeState(GameState.WhiteTurn);
+    }
+
+    private void SetCamera(float radius, float theta, float phi)
+    {
+        phi *= Mathf.Deg2Rad;
+        theta *= Mathf.Deg2Rad;
+        float x = radius * Mathf.Sin(phi) * Mathf.Cos(theta);
+        float y = radius * Mathf.Cos(phi);
+        float z = radius * Mathf.Sin(phi) * Mathf.Sin(theta);
+        Camera.main.transform.position = new Vector3(x, y, z);
+        Camera.main.transform.LookAt(Vector3.zero);
     }
 
 

@@ -4,11 +4,14 @@ using System.Collections;
 public class ChessPiece : MonoBehaviour
 {
     public float yOffset = 0, scale = 100, zRotation = 0;
+    public int chessX, chessY, chessZ; // X, Y, Z coordinates in the chess board
+    private Material material;
 
     void OnEnable()
     {
         transform.localScale = new Vector3(scale, scale, scale);
         transform.rotation = Quaternion.Euler(-90, 0, zRotation);
+        material = GetComponent<Renderer>().material;
     }
 
     void Update()
@@ -23,12 +26,21 @@ public class ChessPiece : MonoBehaviour
         transform.position = newPosition;
     }
 
+    public void SetHighLight(bool on)
+    {
+        if (on)
+            material.EnableKeyword("_EMISSION");
+        else
+            material.DisableKeyword("_EMISSION");
+    }
+
+
     // lerp the chess piece to a new position
     public void LerpToPosition(Vector3 newPosition, float duration)
     {
         StartCoroutine(LerpPosition(newPosition, duration));
     }
-    
+
     private IEnumerator LerpPosition(Vector3 newPosition, float duration)
     {
         Vector3 startPosition = transform.position;
