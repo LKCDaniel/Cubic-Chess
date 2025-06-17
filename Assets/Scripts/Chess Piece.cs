@@ -1,10 +1,11 @@
 using UnityEngine;
 using System.Collections;
+using Unity.Mathematics;
 
 public class ChessPiece : MonoBehaviour
 {
     public float yOffset = 0, scale = 100, zRotation = 0;
-    public int chessX, chessY, chessZ; // X, Y, Z coordinates in the chess board
+    public int3 chessPosition; // X, Y, Z coordinates in the chess board
     private Material material;
 
     void OnEnable()
@@ -19,11 +20,17 @@ public class ChessPiece : MonoBehaviour
 
     }
 
-    public void SetPosition(Vector3 newPosition)
+    private Vector3 TargetPosition(int3 p)
     {
-        newPosition.y += yOffset; // Adjust the height based on yOffset
-        Debug.Log($"{name}'s position set to {newPosition}");
-        transform.position = newPosition;
+        float sep = GameManager.Instance.separation;
+        Vector3 position = new Vector3(p.x * sep - 1.5f * sep, p.y * sep - 1.5f * sep, p.z * sep - 1.5f * sep);
+        position.y += yOffset; // Adjust the height based on yOffset
+        return position;
+    }
+
+    public void SetPosition(int3 chessPosition)
+    {
+        transform.position = TargetPosition(chessPosition);
     }
 
     public void SetHighLight(bool on)
@@ -34,11 +41,15 @@ public class ChessPiece : MonoBehaviour
             material.DisableKeyword("_EMISSION");
     }
 
+    public void Eaten()
+    {
+
+    }
 
     // lerp the chess piece to a new position
-    public void LerpToPosition(Vector3 newPosition, float duration)
+    public void Goto(int3 newPosition, float duration)
     {
-        StartCoroutine(LerpPosition(newPosition, duration));
+        StartCoroutine(LerpPosition(TargetPosition(newPosition), duration));
     }
 
     private IEnumerator LerpPosition(Vector3 newPosition, float duration)
