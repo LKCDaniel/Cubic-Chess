@@ -111,10 +111,10 @@ public class GameManager : MonoBehaviour
     {
         chessBoard = new ChessPiece[4, 4, 4]{ // x, y, z
         {
-            {PawnD1, PawnD2, PawnD3, PawnD4},
-            { PawnD5, PawnD6, PawnD7, PawnD8},
-            { KnightD1, BishopD1, BishopD2, KnightD2},
-            { RookD1, QueenD, KingD, RookD2}
+            { PawnD1, PawnD2, PawnD3, PawnD4}, // x0, y0, z0-z3
+            { KnightD1, BishopD1, BishopD2, KnightD2}, // x0, y1, z0-z3
+            { PawnD5, PawnD6, PawnD7, PawnD8}, // x0, y2, z0-z3
+            { RookD1, RookD2, QueenD, KingD} // x0, y3, z0-z3
         }, {
             { null, null, null, null},
             { null, null, null, null},
@@ -126,10 +126,10 @@ public class GameManager : MonoBehaviour
             { null, null, null, null},
             { null, null, null, null}
         }, {
+            { KingW, QueenW, RookW1, RookW2},
             { PawnW1, PawnW2, PawnW3, PawnW4},
-            { PawnW5, PawnW6, PawnW7, PawnW8},
             { KnightW1, BishopW1, BishopW2, KnightW2},
-            { RookW1, KingW, QueenW, RookW2}
+            { PawnW5, PawnW6, PawnW7, PawnW8}
         },};
 
         for (int x = 0; x < 4; x++)
@@ -199,7 +199,7 @@ public class GameManager : MonoBehaviour
 
     private void Win(bool isWhite)
     {
-        
+
     }
 
     private void PointerControl()
@@ -256,7 +256,10 @@ public class GameManager : MonoBehaviour
             if (mouseDragDistance <= clickTolerance) // click event
             {
                 if (pointedPiece != null)
-                    ClickPiece(pointedPiece);
+                {
+                    selectedPiece = pointedPiece;
+                    ClickPiece();
+                }
                 else if (pointedCube != null)
                 {
                     Move(pointedCube.chessPosition.x, pointedCube.chessPosition.y, pointedCube.chessPosition.z);
@@ -299,9 +302,8 @@ public class GameManager : MonoBehaviour
 
     }
 
-    private void ClickPiece(ChessPiece piece)
+    private void ClickPiece()
     {
-        selectedPiece = piece;
         moveables.Clear();
         eatables.Clear();
         if (selectedPiece == null)
@@ -310,26 +312,26 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        string type = piece.name.Split(' ')[0];
+        string type = selectedPiece.name.Split(' ')[0];
         for (int x = 0; x < 4; x++)
         {
             for (int y = 0; y < 4; y++)
             {
                 for (int z = 0; z < 4; z++)
                 {
-                    int3 pieceP = piece.chessPosition;
-                    int sameAxis = (x == pieceP.x ? 1 : 0) + (y == pieceP.y ? 1 : 0) + (z == pieceP.z ? 1 : 0);
+                    int3 selPiecePos = selectedPiece.chessPosition;
+                    int sameAxis = (x == selPiecePos.x ? 1 : 0) + (y == selPiecePos.y ? 1 : 0) + (z == selPiecePos.z ? 1 : 0);
                     switch (type)
                     {
                         case "King":
-                            if (Abs(x - pieceP.x) <= 1 && Abs(y - pieceP.y) <= 1 && Abs(z - pieceP.z) <= 1)
+                            if (Abs(x - selPiecePos.x) <= 1 && Abs(y - selPiecePos.y) <= 1 && Abs(z - selPiecePos.z) <= 1)
                                 AddMoveable(x, y, z);
                             break;
 
                         case "Queen":
-                            if (x == pieceP.x && Abs(y - pieceP.y) == Abs(z - pieceP.z) ||
-                                y == pieceP.y && Abs(x - pieceP.x) == Abs(z - pieceP.z) ||
-                                z == pieceP.z && Abs(x - pieceP.x) == Abs(y - pieceP.y) ||
+                            if (x == selPiecePos.x && Abs(y - selPiecePos.y) == Abs(z - selPiecePos.z) ||
+                                y == selPiecePos.y && Abs(x - selPiecePos.x) == Abs(z - selPiecePos.z) ||
+                                z == selPiecePos.z && Abs(x - selPiecePos.x) == Abs(y - selPiecePos.y) ||
                                 sameAxis == 2)
                                 AddMoveable(x, y, z);
                             break;
@@ -340,34 +342,34 @@ public class GameManager : MonoBehaviour
                             break;
 
                         case "Bishop":
-                            if (x == pieceP.x && Abs(y - pieceP.y) == Abs(z - pieceP.z) ||
-                                y == pieceP.y && Abs(x - pieceP.x) == Abs(z - pieceP.z) ||
-                                z == pieceP.z && Abs(x - pieceP.x) == Abs(y - pieceP.y))
+                            if (x == selPiecePos.x && Abs(y - selPiecePos.y) == Abs(z - selPiecePos.z) ||
+                                y == selPiecePos.y && Abs(x - selPiecePos.x) == Abs(z - selPiecePos.z) ||
+                                z == selPiecePos.z && Abs(x - selPiecePos.x) == Abs(y - selPiecePos.y))
                                 AddMoveable(x, y, z);
                             break;
 
                         case "Knight":
-                            if ((Abs(x - pieceP.x) == 2 && Abs(y - pieceP.y) == 1 && z == pieceP.z) ||
-                                (Abs(x - pieceP.x) == 1 && Abs(y - pieceP.y) == 2 && z == pieceP.z) ||
-                                (Abs(z - pieceP.z) == 2 && Abs(x - pieceP.x) == 1 && y == pieceP.y) ||
-                                (Abs(z - pieceP.z) == 1 && Abs(x - pieceP.x) == 2 && y == pieceP.y) ||
-                                (Abs(y - pieceP.y) == 2 && Abs(z - pieceP.z) == 1 && x == pieceP.x) ||
-                                (Abs(y - pieceP.y) == 1 && Abs(z - pieceP.z) == 2 && x == pieceP.x))
+                            if ((Abs(x - selPiecePos.x) == 2 && Abs(y - selPiecePos.y) == 1 && z == selPiecePos.z) ||
+                                (Abs(x - selPiecePos.x) == 1 && Abs(y - selPiecePos.y) == 2 && z == selPiecePos.z) ||
+                                (Abs(z - selPiecePos.z) == 2 && Abs(x - selPiecePos.x) == 1 && y == selPiecePos.y) ||
+                                (Abs(z - selPiecePos.z) == 1 && Abs(x - selPiecePos.x) == 2 && y == selPiecePos.y) ||
+                                (Abs(y - selPiecePos.y) == 2 && Abs(z - selPiecePos.z) == 1 && x == selPiecePos.x) ||
+                                (Abs(y - selPiecePos.y) == 1 && Abs(z - selPiecePos.z) == 2 && x == selPiecePos.x))
                                 AddMoveable(x, y, z);
                             break;
 
                         case "Pawn":
-                            int xMatch = piece.isL2R ? x - 1 : x + 1;
-                            if (xMatch == pieceP.x)
+                            int xMatch = selectedPiece.isL2R ? x - 1 : x + 1;
+                            if (xMatch == selPiecePos.x)
                             {
-                                if (y == pieceP.y && z == pieceP.z)
+                                if (y == selPiecePos.y && z == selPiecePos.z)
                                 {
                                     if (chessBoard[x, y, z] == null)
                                         moveables.Add(new int3(x, y, z));
                                 }
-                                else if ((Abs(y - pieceP.y) == 1 && z == pieceP.z || Abs(z - pieceP.z) == 1 && y == pieceP.y) &&
+                                else if ((Abs(y - selPiecePos.y) == 1 && z == selPiecePos.z || Abs(z - selPiecePos.z) == 1 && y == selPiecePos.y) &&
                                         chessBoard[x, y, z] != null &&
-                                        !chessBoard[x, y, z].CompareTag(piece.tag))
+                                        !chessBoard[x, y, z].CompareTag(selectedPiece.tag))
                                     eatables.Add(new int3(x, y, z));
                             }
                             break;
@@ -391,21 +393,21 @@ public class GameManager : MonoBehaviour
     private void Move(int x, int y, int z)
     {
         inTransition = true;
-        ChessPiece piece = chessBoard[x, y, z];
+        ChessPiece targetPiece = chessBoard[x, y, z];
 
-        if (piece != null)
-            piece.Eaten(new(0, 0, 5));
+        if (targetPiece != null)
+            targetPiece.Eaten(new(0, 0, 5));
 
         if (selectedPiece.isL2R && x == 3 || !selectedPiece.isL2R && x == 0) // Pawn promotion / reverse in direction
             selectedPiece.isL2R = !selectedPiece.isL2R;
-        else if (piece == KingW) // Dark win
+        else if (targetPiece == KingW) // Dark win
             Win(false);
-        else if (piece == KingD) // White win
+        else if (targetPiece == KingD) // White win
             Win(true);
 
         chessBoard[selectedPiece.chessPosition.x, selectedPiece.chessPosition.y, selectedPiece.chessPosition.z] = null;
         selectedPiece.MoveTo(new int3(x, y, z), SwitchTurn);
-        piece = selectedPiece;
+        chessBoard[x, y, z] = selectedPiece;
 
         void SwitchTurn()
         {
