@@ -5,6 +5,7 @@ using Unity.Mathematics;
 public class CubeManager : MonoBehaviour
 {
     public static CubeManager Instance;
+
     private void Awake()
     {
         if (Instance != null)
@@ -12,9 +13,8 @@ public class CubeManager : MonoBehaviour
         Instance = this;
     }
 
-
     public GameObject redCubePrefab, greenCubePrefab;
-    private GameObject[,,] chessCubes = new GameObject[4, 4, 4];
+    private List<GameObject> cubes = new List<GameObject>();
 
     public void SetCubes(List<int3> greenCubes, List<int3> redCubes)
     {
@@ -28,21 +28,20 @@ public class CubeManager : MonoBehaviour
 
     public void ClearCubes()
     {
-        foreach (var cube in chessCubes)
-        {
-            if (cube != null) Destroy(cube);
-        }
-        chessCubes = new GameObject[4, 4, 4];
+        foreach (var cube in cubes)
+            Destroy(cube);
+        cubes.Clear();
     }
 
     private void CreateCube(int x, int y, int z, bool isRed)
     {
         float sep = GameManager.Instance.separation;
-        GameObject cubePrefab = isRed ? redCubePrefab : greenCubePrefab;
         Vector3 p = new Vector3(x * sep - 1.5f * sep, y * sep - 1.5f * sep, z * sep - 1.5f * sep);
-        GameObject cube = Instantiate(cubePrefab, p, Quaternion.identity);
-        cube.transform.localScale = new Vector3(sep, sep, sep);
-        chessCubes[x, y, z] = cube;
+        GameObject cube = Instantiate(isRed ? redCubePrefab : greenCubePrefab, p, Quaternion.identity);
+        cube.GetComponent<Cube>().chessPosition = new int3(x, y, z);
+        cube.GetComponent<Cube>().isRed = isRed;
+        cubes.Add(cube);
     }
 
 }
+

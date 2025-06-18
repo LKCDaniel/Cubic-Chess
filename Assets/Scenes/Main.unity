@@ -2104,9 +2104,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eedd48d1e6541d54cb2754f9962d0393, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  radius: 13
-  theta: -90
-  phi: 60
+  pieceMoveTime: 1
+  cameraMoveTime: 3
   mouseSensitivity: 0.5
   scrollSensitivity: 2
   clickTolerance: 5
@@ -2117,6 +2116,9 @@ MonoBehaviour:
   maxPhi: 170
   minRadius: 0
   maxRadius: 20
+  initRadius: 13
+  initTheta: -90
+  initPhi: 60
   separation: 2.5
 --- !u!4 &1905431094
 Transform:

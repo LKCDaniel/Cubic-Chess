@@ -3,7 +3,8 @@ using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
 using System.Collections.Generic;
 using Unity.Mathematics;
-using static System.Math;
+using static UnityEngine.Mathf;
+using System.Collections;
 
 public class GameManager : MonoBehaviour
 {
@@ -15,37 +16,44 @@ public class GameManager : MonoBehaviour
         Instance = this;
     }
 
-
     // Managers
     private CubeManager cubeManager;
-
+    private UIManager uiManager;
     // Game states
-    public enum GameState { GameEntry, GamePause, WhiteTurn, BlackTurn, GameEnd }
-    private GameState CurrentState;
+    public enum GameState { Entry, Paused, Running, End }
+    public GameState CurrentState;
+
+    // Animation times
+    [Header("Animation Times")]
+    public float pieceMoveTime;
+    public float entryTime, cameraMoveTime;
 
     // Interaction variables
-    private bool isDraggingCamera = false;
-    private Vector2 lastMousePosition, initialMousePosition;
-
-    [Header("Camera Spherical Coordinates")]
-    public float radius;
-    public float theta, phi; // horizontal angle 0-360, vertical angle
-
     [Header("Camera Control Settings")]
     public float mouseSensitivity;
     public float scrollSensitivity, clickTolerance;
     public float keyZoomSpeed, keyThetaSpeed, keyPhiSpeed;
     public float minPhi, maxPhi, minRadius, maxRadius;
+    private bool isDraggingCamera = false;
+    private Vector2 lastMousePosition, initialMousePosition;
+
+    // Sphere coordinate variables
+    [Header("Initial Camera Position")]
+    public float initRadius;
+    public float initTheta, initPhi; // initial horizontal angle 0-360, vertical angle
+    private float radius, theta, phi; // current camera angles
+    private float storedRadius, storedTheta, storedPhi; // store white and dark camera angles
 
     // chess board, game variables
     [Header("Chess Board Settings")]
-    ChessPiece[,,] chessBoard; // 4*4*4, X from L to R, Y from B to T, Z from F to B
     public float separation; // separation between chess pieces
-    private ChessPiece selectedPiece;
+    ChessPiece[,,] chessBoard; // 4*4*4, X from L to R, Y from B to T, Z from F to B
+    private ChessPiece pointedPiece, selectedPiece;
+    private Cube pointedCube;
     private List<int3> moveables = new List<int3>(); // List of possible moves for the selected piece
     private List<int3> eatables = new List<int3>(); // List of possible eats for the selected piece
-    private bool[] pawnReversed = new bool[8]; // Track if pawns have been reversed
     private bool isWhiteTurn = true;
+    private bool inTransition; // Is a piece currently moving
 
     // chess pieces
     ChessPiece
@@ -59,10 +67,10 @@ public class GameManager : MonoBehaviour
 
     // -------------------- Game Variables -----------------------------------------------------------
 
-
     void OnEnable()
     {
         cubeManager = CubeManager.Instance;
+        uiManager = UIManager.Instance;
 
         KingW = GameObject.Find("King White").GetComponent<ChessPiece>();
         KingD = GameObject.Find("King Dark").GetComponent<ChessPiece>();
@@ -97,6 +105,10 @@ public class GameManager : MonoBehaviour
         PawnD7 = GameObject.Find("Pawn Dark 7").GetComponent<ChessPiece>();
         PawnD8 = GameObject.Find("Pawn Dark 8").GetComponent<ChessPiece>();
 
+    }
+
+    void Start()
+    {
         chessBoard = new ChessPiece[4, 4, 4]{ // x, y, z
         {
             {PawnD1, PawnD2, PawnD3, PawnD4},
@@ -135,56 +147,100 @@ public class GameManager : MonoBehaviour
             }
         }
 
-    }
+        foreach (var pawn in new[] { PawnD1, PawnD2, PawnD3, PawnD4, PawnD5, PawnD6, PawnD7, PawnD8 })
+            pawn.isL2R = true;
 
-    void Start()
-    {
-        ChangeState(GameState.GameEntry);
+        ChangeState(GameState.Entry);
+
     }
 
     void Update()
     {
-        foreach (ChessPiece piece in chessBoard)
-        {
-            if (piece != null)
-                piece.SetHighLight(false); // Clear all highlights
-        }
-        PointerControl();
         KeyboardControl();
+        if (CurrentState == GameState.Running)
+            PointerControl();
+    }
+
+    public void ChangeState(GameState newState)
+    {
+        CurrentState = newState;
+        switch (CurrentState)
+        {
+            case GameState.Entry:
+                Debug.Log("Game is starting");
+                inTransition = true;
+                uiManager.FadeShade();
+                MoveCamera(initRadius, initTheta, initPhi, entryTime, () =>
+                {
+                    inTransition = false;
+                    radius = storedRadius = initRadius;
+                    theta = storedTheta = initTheta;
+                    phi = storedPhi = initPhi;
+                    ChangeState(GameState.Running);
+                });
+                break;
+
+            case GameState.Paused:
+                Debug.Log("Game is paused");
+                Time.timeScale = 0; // pause the game
+                break;
+
+            case GameState.Running:
+                Debug.Log("Game is running");
+                Time.timeScale = 1; // resume the game
+                break;
+
+            case GameState.End:
+                Debug.Log("Game over!");
+                break;
+        }
+
+    }
+
+    private void Win(bool isWhite)
+    {
+        
     }
 
     private void PointerControl()
     {
-        if (EventSystem.current.IsPointerOverGameObject()) return; // Pointing at UI, no action
+        // No action if pointing at UI, or moving a piece
+        if (inTransition) return;
 
-        // Piece highlighting
-        ChessPiece pointedPiece = null;
-        Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit)) // Pointing to a chess piece
+        // Highlighting piece or cube
+        if (pointedPiece != null)
         {
-            ChessPiece hitPiece = hit.collider.GetComponent<ChessPiece>();
-
-            // If it is the color's turn, highlight the pointed piece
-            if ((hitPiece.CompareTag("White") && isWhiteTurn) || (hitPiece.CompareTag("Dark") && !isWhiteTurn))
+            pointedPiece.SetHighLight(false);
+            pointedPiece = null;
+        }
+        if (pointedCube != null)
+        {
+            pointedCube.SetEnlargeCube(false);
+            pointedCube = null;
+        }
+        Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
+        if (Physics.Raycast(ray, out RaycastHit hit)) // Pointing to piece or cube
+        {
+            if (hit.collider.CompareTag("Green") || hit.collider.CompareTag("Red"))
             {
-                pointedPiece = hitPiece;
+                pointedCube = hit.collider.GetComponent<Cube>();
+                pointedCube.SetEnlargeCube(true);
+            }
+            else if (hit.collider.CompareTag("White") && isWhiteTurn || hit.collider.CompareTag("Dark") && !isWhiteTurn)
+            {
+                pointedPiece = hit.collider.GetComponent<ChessPiece>();
                 pointedPiece.SetHighLight(true);
             }
         }
 
-        // Camera dragging, piece selection
+        // Camera dragging selection
         if (isDraggingCamera)
         {
             Vector2 currentMousePosition = Mouse.current.position.ReadValue();
             Vector2 delta = currentMousePosition - lastMousePosition;
-
             theta -= delta.x * mouseSensitivity;
-            theta %= 360;
             phi += delta.y * mouseSensitivity;
-            phi = Mathf.Clamp(phi, minPhi, maxPhi);
-
-            SetCamera(radius, theta, phi);
+            UpdateCamera();
             lastMousePosition = currentMousePosition;
         }
         else if (Mouse.current.leftButton.wasPressedThisFrame)
@@ -196,18 +252,54 @@ public class GameManager : MonoBehaviour
         if (Mouse.current.leftButton.wasReleasedThisFrame)
         {
             isDraggingCamera = false;
-
-            // click event
             float mouseDragDistance = Vector2.Distance(initialMousePosition, Mouse.current.position.ReadValue());
-            if (mouseDragDistance <= clickTolerance)
+            if (mouseDragDistance <= clickTolerance) // click event
             {
-                setSelectedPiece(pointedPiece);
+                if (pointedPiece != null)
+                    ClickPiece(pointedPiece);
+                else if (pointedCube != null)
+                {
+                    Move(pointedCube.chessPosition.x, pointedCube.chessPosition.y, pointedCube.chessPosition.z);
+                    cubeManager.ClearCubes();
+                }
             }
         }
 
     }
 
-    private void setSelectedPiece(ChessPiece piece)
+    private void KeyboardControl()
+    {
+        // onclick pause button
+        if (Keyboard.current.escapeKey.wasPressedThisFrame)
+            uiManager.PauseOnClick();
+
+        if (Keyboard.current == null || CurrentState != GameState.Running) return;
+
+        // zoom camera: R, F
+        if (Keyboard.current.rKey.isPressed)
+            radius -= keyZoomSpeed * Time.deltaTime;
+
+        if (Keyboard.current.fKey.isPressed)
+            radius += keyZoomSpeed * Time.deltaTime;
+
+        // rotate camera: A, D, W, S or Arrow keys
+        if (Keyboard.current.leftArrowKey.isPressed || Keyboard.current.aKey.isPressed)
+            theta -= keyThetaSpeed * Time.deltaTime;
+
+        if (Keyboard.current.rightArrowKey.isPressed || Keyboard.current.dKey.isPressed)
+            theta += keyThetaSpeed * Time.deltaTime;
+
+        if (Keyboard.current.upArrowKey.isPressed || Keyboard.current.wKey.isPressed)
+            phi -= keyPhiSpeed * Time.deltaTime;
+
+        if (Keyboard.current.downArrowKey.isPressed || Keyboard.current.sKey.isPressed)
+            phi += keyPhiSpeed * Time.deltaTime;
+
+        UpdateCamera();
+
+    }
+
+    private void ClickPiece(ChessPiece piece)
     {
         selectedPiece = piece;
         moveables.Clear();
@@ -231,7 +323,7 @@ public class GameManager : MonoBehaviour
                     {
                         case "King":
                             if (Abs(x - pieceP.x) <= 1 && Abs(y - pieceP.y) <= 1 && Abs(z - pieceP.z) <= 1)
-                                AddMoveable(x, y, z, piece);
+                                AddMoveable(x, y, z);
                             break;
 
                         case "Queen":
@@ -239,19 +331,19 @@ public class GameManager : MonoBehaviour
                                 y == pieceP.y && Abs(x - pieceP.x) == Abs(z - pieceP.z) ||
                                 z == pieceP.z && Abs(x - pieceP.x) == Abs(y - pieceP.y) ||
                                 sameAxis == 2)
-                                AddMoveable(x, y, z, piece);
+                                AddMoveable(x, y, z);
                             break;
 
                         case "Rook":
                             if (sameAxis == 2)
-                                AddMoveable(x, y, z, piece);
+                                AddMoveable(x, y, z);
                             break;
 
                         case "Bishop":
                             if (x == pieceP.x && Abs(y - pieceP.y) == Abs(z - pieceP.z) ||
                                 y == pieceP.y && Abs(x - pieceP.x) == Abs(z - pieceP.z) ||
                                 z == pieceP.z && Abs(x - pieceP.x) == Abs(y - pieceP.y))
-                                AddMoveable(x, y, z, piece);
+                                AddMoveable(x, y, z);
                             break;
 
                         case "Knight":
@@ -261,12 +353,11 @@ public class GameManager : MonoBehaviour
                                 (Abs(z - pieceP.z) == 1 && Abs(x - pieceP.x) == 2 && y == pieceP.y) ||
                                 (Abs(y - pieceP.y) == 2 && Abs(z - pieceP.z) == 1 && x == pieceP.x) ||
                                 (Abs(y - pieceP.y) == 1 && Abs(z - pieceP.z) == 2 && x == pieceP.x))
-                                AddMoveable(x, y, z, piece);
+                                AddMoveable(x, y, z);
                             break;
 
                         case "Pawn":
-                            bool isPawnL2R = isWhiteTurn == pawnReversed[int.Parse(piece.name.Split(' ')[2]) - 1]; // is pawn moving from left to right
-                            int xMatch = isPawnL2R ? x - 1 : x + 1;
+                            int xMatch = piece.isL2R ? x - 1 : x + 1;
                             if (xMatch == pieceP.x)
                             {
                                 if (y == pieceP.y && z == pieceP.z)
@@ -276,109 +367,103 @@ public class GameManager : MonoBehaviour
                                 }
                                 else if ((Abs(y - pieceP.y) == 1 && z == pieceP.z || Abs(z - pieceP.z) == 1 && y == pieceP.y) &&
                                         chessBoard[x, y, z] != null &&
-                                        chessBoard[x, y, z].CompareTag(piece.CompareTag("White") == isWhiteTurn ? "Dark" : "White"))
+                                        !chessBoard[x, y, z].CompareTag(piece.tag))
                                     eatables.Add(new int3(x, y, z));
                             }
                             break;
                     }
-
                 }
             }
         }
-
         cubeManager.SetCubes(moveables, eatables);
 
-    }
-
-    private void AddMoveable(int x, int y, int z, ChessPiece piece)
-    {
-        if (chessBoard[x, y, z] == null)
-            moveables.Add(new int3(x, y, z));
-        else if (chessBoard[x, y, z].CompareTag(piece.CompareTag("White") == isWhiteTurn ? "Dark" : "White"))
-            eatables.Add(new int3(x, y, z));
-    }
-
-    private void KeyboardControl()
-    {
-        if (Keyboard.current == null) return;
-
-        // onclick pause button
-        if (Keyboard.current.escapeKey.wasPressedThisFrame)
+        // helper method
+        void AddMoveable(int x, int y, int z)
         {
-
+            if (chessBoard[x, y, z] == null)
+                moveables.Add(new int3(x, y, z));
+            else if (!chessBoard[x, y, z].CompareTag(selectedPiece.tag))
+                eatables.Add(new int3(x, y, z));
         }
 
-        // zoom camera: R, F
-        if (Keyboard.current.rKey.isPressed)
-            radius -= keyZoomSpeed * Time.deltaTime;
+    }
 
-        if (Keyboard.current.fKey.isPressed)
-            radius += keyZoomSpeed * Time.deltaTime;
+    private void Move(int x, int y, int z)
+    {
+        inTransition = true;
+        ChessPiece piece = chessBoard[x, y, z];
 
-        // rotate camera: A, D, W, S or Arrow keys
-        if (Keyboard.current.leftArrowKey.isPressed || Keyboard.current.aKey.isPressed)
-            theta -= keyThetaSpeed * Time.deltaTime;
+        if (piece != null)
+            piece.Eaten(new(0, 0, 5));
 
-        if (Keyboard.current.rightArrowKey.isPressed || Keyboard.current.dKey.isPressed)
-            theta += keyThetaSpeed * Time.deltaTime;
+        if (selectedPiece.isL2R && x == 3 || !selectedPiece.isL2R && x == 0) // Pawn promotion / reverse in direction
+            selectedPiece.isL2R = !selectedPiece.isL2R;
+        else if (piece == KingW) // Dark win
+            Win(false);
+        else if (piece == KingD) // White win
+            Win(true);
 
-        if (Keyboard.current.upArrowKey.isPressed || Keyboard.current.wKey.isPressed)
-            phi -= keyPhiSpeed * Time.deltaTime;
+        selectedPiece.MoveTo(new int3(x, y, z), SwitchTurn);
+        chessBoard[selectedPiece.chessPosition.x, selectedPiece.chessPosition.y, selectedPiece.chessPosition.z] = null;
+        piece = selectedPiece;
 
-        if (Keyboard.current.downArrowKey.isPressed || Keyboard.current.sKey.isPressed)
-            phi += keyPhiSpeed * Time.deltaTime;
+        void SwitchTurn()
+        {
+            MoveCamera(storedRadius, storedTheta, storedPhi, cameraMoveTime, () => { inTransition = false; });
+            storedRadius = radius;
+            storedTheta = theta;
+            storedPhi = phi;
+            isWhiteTurn = !isWhiteTurn;
+        }
 
-        radius = Mathf.Clamp(radius, minRadius, maxRadius);
+    }
+
+    private void UpdateCamera()
+    {
+        radius = Clamp(radius, minRadius, maxRadius);
         theta %= 360;
-        phi = Mathf.Clamp(phi, minPhi, maxPhi);
-
-        SetCamera(radius, theta, phi);
-    }
-
-    public void ChangeState(GameState newState)
-    {
-        if (CurrentState == newState) return;
-
-        Debug.Log($"Changing game state from {CurrentState} to {newState}");
-        CurrentState = newState;
-
-        switch (CurrentState)
-        {
-            case GameState.GameEntry:
-                Debug.Log("Game is starting...");
-                SetupGame();
-                break;
-            case GameState.GamePause:
-                Debug.Log("Game is paused");
-                break;
-            case GameState.WhiteTurn:
-                Debug.Log("White's turn to play");
-                break;
-            case GameState.BlackTurn:
-                Debug.Log("Black's turn to play");
-                break;
-            case GameState.GameEnd:
-                Debug.Log("Game over!");
-                break;
-        }
-    }
-
-    private void SetupGame()
-    {
-        // Let the camera sweep across the board
-        SetCamera(radius, theta, phi);
-        ChangeState(GameState.WhiteTurn);
-    }
-
-    private void SetCamera(float radius, float theta, float phi)
-    {
-        phi *= Mathf.Deg2Rad;
-        theta *= Mathf.Deg2Rad;
-        float x = radius * Mathf.Sin(phi) * Mathf.Cos(theta);
-        float y = radius * Mathf.Cos(phi);
-        float z = radius * Mathf.Sin(phi) * Mathf.Sin(theta);
+        phi = Clamp(phi, minPhi, maxPhi);
+        float x = radius * Sin(phi * Deg2Rad) * Cos(theta * Deg2Rad);
+        float y = radius * Cos(phi * Deg2Rad);
+        float z = radius * Sin(phi * Deg2Rad) * Sin(theta * Deg2Rad);
         Camera.main.transform.position = new Vector3(x, y, z);
         Camera.main.transform.LookAt(Vector3.zero);
+    }
+
+    private void MoveCamera(float targetRadius, float targetTheta, float targetPhi, float duration, System.Action onComplete = null)
+    {
+        StartCoroutine(MoveCameraCoroutine(targetRadius, targetTheta, targetPhi, duration, onComplete));
+
+        IEnumerator MoveCameraCoroutine(float targetRadius, float targetTheta, float targetPhi, float duration, System.Action onComplete)
+        {
+            Vector3 startPosition = Camera.main.transform.position;
+            float elapsedTime = 0;
+            float beginRadius = radius;
+            float beginTheta = theta;
+            float beginPhi = phi;
+
+            float deltaTheta = targetTheta - theta;
+            if (deltaTheta > 180) deltaTheta -= 360;
+            else if (deltaTheta < -180) deltaTheta += 360;
+
+            while (elapsedTime < duration)
+            {
+                float time = SmoothStep(0, 1, elapsedTime / duration);
+
+                radius = Lerp(beginRadius, targetRadius, time);
+                theta = Lerp(0, deltaTheta, time) + beginTheta;
+                phi = Lerp(beginPhi, targetPhi, time);
+                UpdateCamera();
+                elapsedTime += Time.deltaTime;
+                yield return null;
+            }
+            radius = targetRadius;
+            theta = targetTheta;
+            phi = targetPhi;
+            UpdateCamera();
+            onComplete?.Invoke();
+        }
+
     }
 
 
