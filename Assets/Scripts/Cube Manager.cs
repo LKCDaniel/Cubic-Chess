@@ -37,6 +37,8 @@ public class CubeManager : MonoBehaviour
     {
         float sep = GameManager.Instance.separation;
         Vector3 p = new Vector3(x * sep - 1.5f * sep, y * sep - 1.5f * sep, z * sep - 1.5f * sep);
+        if (!GameManager.Instance.isWhiteTurn)
+            p = new Vector3(-p.x, -p.y, p.z);
         GameObject cube = Instantiate(isRed ? redCubePrefab : greenCubePrefab, p, Quaternion.identity);
         cube.GetComponent<Cube>().chessPosition = new int3(x, y, z);
         cube.GetComponent<Cube>().isRed = isRed;
