@@ -403,8 +403,8 @@ public class GameManager : MonoBehaviour
         else if (piece == KingD) // White win
             Win(true);
 
-        selectedPiece.MoveTo(new int3(x, y, z), SwitchTurn);
         chessBoard[selectedPiece.chessPosition.x, selectedPiece.chessPosition.y, selectedPiece.chessPosition.z] = null;
+        selectedPiece.MoveTo(new int3(x, y, z), SwitchTurn);
         piece = selectedPiece;
 
         void SwitchTurn()
