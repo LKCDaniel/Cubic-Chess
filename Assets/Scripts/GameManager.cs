@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using static UnityEngine.Mathf;
 using System.Collections;
+using Unity.VisualScripting;
 
 public class GameManager : MonoBehaviour
 {
@@ -15,11 +16,16 @@ public class GameManager : MonoBehaviour
         Instance = this;
     }
 
+    // ------------------------------------ Game Variables -------------------------------------------------------------------
+
     // Managers
     private CubeManager cubeManager;
     private UIManager uiManager;
+    private GridManager gridManager;
+
     // Game states
     public enum GameState { Entry, Paused, Running, End }
+    [HideInInspector]
     public GameState CurrentState;
 
     // Animation times
@@ -40,22 +46,24 @@ public class GameManager : MonoBehaviour
     [Header("Initial Camera Position")]
     public float initRadius;
     public float initTheta, initPhi; // initial horizontal angle 0-360, vertical angle
+    public float cameraYOffset; // camera height offset
     private float radius, theta, phi; // current camera angles
     private float storedRadius, storedTheta, storedPhi; // store white and dark camera angles
 
     // chess board, game variables
     [Header("Chess Board Settings")]
     public float separation; // separation between chess pieces
-    ChessPiece[,,] chessBoard; // 4*4*4, X from L to R, Y from B to T, Z from F to B
-    private ChessPiece pointedPiece, selectedPiece;
+    MoveableObject[,,] chessBoard; // 4*4*4, X from L to R, Y from B to T, Z from F to B
+    private MoveableObject pointedPiece, selectedPiece;
     private Cube pointedCube;
     private List<int3> moveables = new List<int3>(); // List of possible moves for the selected piece
     private List<int3> eatables = new List<int3>(); // List of possible eats for the selected piece
+    [HideInInspector]
     public bool isWhiteTurn = true;
     private bool inTransition; // Is a piece currently moving
 
     // chess pieces
-    ChessPiece
+    MoveableObject
         KingW, KingD,
         QueenW, QueenD,
         RookW1, RookW2, RookD1, RookD2,
@@ -64,52 +72,53 @@ public class GameManager : MonoBehaviour
         PawnW1, PawnW2, PawnW3, PawnW4, PawnW5, PawnW6, PawnW7, PawnW8,
         PawnD1, PawnD2, PawnD3, PawnD4, PawnD5, PawnD6, PawnD7, PawnD8;
 
-    // -------------------- Game Variables -----------------------------------------------------------
+    // ------------------------------------ Initializations -------------------------------------------------------------------
 
     void OnEnable()
     {
         cubeManager = CubeManager.Instance;
         uiManager = UIManager.Instance;
+        gridManager = GridManager.Instance;
 
-        KingW = GameObject.Find("King White").GetComponent<ChessPiece>();
-        KingD = GameObject.Find("King Dark").GetComponent<ChessPiece>();
-        QueenW = GameObject.Find("Queen White").GetComponent<ChessPiece>();
-        QueenD = GameObject.Find("Queen Dark").GetComponent<ChessPiece>();
-        RookW1 = GameObject.Find("Rook White 1").GetComponent<ChessPiece>();
-        RookW2 = GameObject.Find("Rook White 2").GetComponent<ChessPiece>();
-        RookD1 = GameObject.Find("Rook Dark 1").GetComponent<ChessPiece>();
-        RookD2 = GameObject.Find("Rook Dark 2").GetComponent<ChessPiece>();
-        BishopW1 = GameObject.Find("Bishop White 1").GetComponent<ChessPiece>();
-        BishopW2 = GameObject.Find("Bishop White 2").GetComponent<ChessPiece>();
-        BishopD1 = GameObject.Find("Bishop Dark 1").GetComponent<ChessPiece>();
-        BishopD2 = GameObject.Find("Bishop Dark 2").GetComponent<ChessPiece>();
-        KnightW1 = GameObject.Find("Knight White 1").GetComponent<ChessPiece>();
-        KnightW2 = GameObject.Find("Knight White 2").GetComponent<ChessPiece>();
-        KnightD1 = GameObject.Find("Knight Dark 1").GetComponent<ChessPiece>();
-        KnightD2 = GameObject.Find("Knight Dark 2").GetComponent<ChessPiece>();
-        PawnW1 = GameObject.Find("Pawn White 1").GetComponent<ChessPiece>();
-        PawnW2 = GameObject.Find("Pawn White 2").GetComponent<ChessPiece>();
-        PawnW3 = GameObject.Find("Pawn White 3").GetComponent<ChessPiece>();
-        PawnW4 = GameObject.Find("Pawn White 4").GetComponent<ChessPiece>();
-        PawnW5 = GameObject.Find("Pawn White 5").GetComponent<ChessPiece>();
-        PawnW6 = GameObject.Find("Pawn White 6").GetComponent<ChessPiece>();
-        PawnW7 = GameObject.Find("Pawn White 7").GetComponent<ChessPiece>();
-        PawnW8 = GameObject.Find("Pawn White 8").GetComponent<ChessPiece>();
-        PawnD1 = GameObject.Find("Pawn Dark 1").GetComponent<ChessPiece>();
-        PawnD2 = GameObject.Find("Pawn Dark 2").GetComponent<ChessPiece>();
-        PawnD3 = GameObject.Find("Pawn Dark 3").GetComponent<ChessPiece>();
-        PawnD4 = GameObject.Find("Pawn Dark 4").GetComponent<ChessPiece>();
-        PawnD5 = GameObject.Find("Pawn Dark 5").GetComponent<ChessPiece>();
-        PawnD6 = GameObject.Find("Pawn Dark 6").GetComponent<ChessPiece>();
-        PawnD7 = GameObject.Find("Pawn Dark 7").GetComponent<ChessPiece>();
-        PawnD8 = GameObject.Find("Pawn Dark 8").GetComponent<ChessPiece>();
+        KingW = GameObject.Find("King White").GetComponent<MoveableObject>();
+        KingD = GameObject.Find("King Dark").GetComponent<MoveableObject>();
+        QueenW = GameObject.Find("Queen White").GetComponent<MoveableObject>();
+        QueenD = GameObject.Find("Queen Dark").GetComponent<MoveableObject>();
+        RookW1 = GameObject.Find("Rook White 1").GetComponent<MoveableObject>();
+        RookW2 = GameObject.Find("Rook White 2").GetComponent<MoveableObject>();
+        RookD1 = GameObject.Find("Rook Dark 1").GetComponent<MoveableObject>();
+        RookD2 = GameObject.Find("Rook Dark 2").GetComponent<MoveableObject>();
+        BishopW1 = GameObject.Find("Bishop White 1").GetComponent<MoveableObject>();
+        BishopW2 = GameObject.Find("Bishop White 2").GetComponent<MoveableObject>();
+        BishopD1 = GameObject.Find("Bishop Dark 1").GetComponent<MoveableObject>();
+        BishopD2 = GameObject.Find("Bishop Dark 2").GetComponent<MoveableObject>();
+        KnightW1 = GameObject.Find("Knight White 1").GetComponent<MoveableObject>();
+        KnightW2 = GameObject.Find("Knight White 2").GetComponent<MoveableObject>();
+        KnightD1 = GameObject.Find("Knight Dark 1").GetComponent<MoveableObject>();
+        KnightD2 = GameObject.Find("Knight Dark 2").GetComponent<MoveableObject>();
+        PawnW1 = GameObject.Find("Pawn White 1").GetComponent<MoveableObject>();
+        PawnW2 = GameObject.Find("Pawn White 2").GetComponent<MoveableObject>();
+        PawnW3 = GameObject.Find("Pawn White 3").GetComponent<MoveableObject>();
+        PawnW4 = GameObject.Find("Pawn White 4").GetComponent<MoveableObject>();
+        PawnW5 = GameObject.Find("Pawn White 5").GetComponent<MoveableObject>();
+        PawnW6 = GameObject.Find("Pawn White 6").GetComponent<MoveableObject>();
+        PawnW7 = GameObject.Find("Pawn White 7").GetComponent<MoveableObject>();
+        PawnW8 = GameObject.Find("Pawn White 8").GetComponent<MoveableObject>();
+        PawnD1 = GameObject.Find("Pawn Dark 1").GetComponent<MoveableObject>();
+        PawnD2 = GameObject.Find("Pawn Dark 2").GetComponent<MoveableObject>();
+        PawnD3 = GameObject.Find("Pawn Dark 3").GetComponent<MoveableObject>();
+        PawnD4 = GameObject.Find("Pawn Dark 4").GetComponent<MoveableObject>();
+        PawnD5 = GameObject.Find("Pawn Dark 5").GetComponent<MoveableObject>();
+        PawnD6 = GameObject.Find("Pawn Dark 6").GetComponent<MoveableObject>();
+        PawnD7 = GameObject.Find("Pawn Dark 7").GetComponent<MoveableObject>();
+        PawnD8 = GameObject.Find("Pawn Dark 8").GetComponent<MoveableObject>();
 
     }
 
     void Start()
     {
         // Button-Top arrangement
-        chessBoard = new ChessPiece[4, 4, 4]{ // x, y, z
+        chessBoard = new MoveableObject[4, 4, 4]{ // x, y, z
         {
             { RookW1, PawnW1, KnightW1, PawnW2}, // x0, y0, z0-z3
             { null, null, null, null}, // x0, y1, z0-z3
@@ -139,10 +148,7 @@ public class GameManager : MonoBehaviour
                 for (int z = 0; z < 4; z++)
                 {
                     if (chessBoard[x, y, z] != null)
-                    {
-                        chessBoard[x, y, z].SetPosition(new int3(x, y, z));
-                        chessBoard[x, y, z].chessPosition = new int3(x, y, z);
-                    }
+                        chessBoard[x, y, z].SetChessPosition(new int3(x, y, z));
                 }
             }
         }
@@ -153,6 +159,8 @@ public class GameManager : MonoBehaviour
         ChangeState(GameState.Entry);
 
     }
+
+    // ------------------------------------ Executions -------------------------------------------------------------------
 
     void Update()
     {
@@ -204,7 +212,7 @@ public class GameManager : MonoBehaviour
 
     private void PointerControl()
     {
-        // Highlighting piece or cube
+        // Highlighting pieces or cube
         if (pointedPiece != null)
         {
             pointedPiece.SetHighLight(false);
@@ -215,6 +223,8 @@ public class GameManager : MonoBehaviour
             pointedCube.SetEnlargeCube(false);
             pointedCube = null;
         }
+        if (selectedPiece != null)
+            selectedPiece.SetHighLight(true);
 
         if (!inTransition)
         {
@@ -228,7 +238,7 @@ public class GameManager : MonoBehaviour
                 }
                 else if (hit.collider.CompareTag("White") && isWhiteTurn || hit.collider.CompareTag("Dark") && !isWhiteTurn)
                 {
-                    pointedPiece = hit.collider.GetComponent<ChessPiece>();
+                    pointedPiece = hit.collider.GetComponent<MoveableObject>();
                     pointedPiece.SetHighLight(true);
                 }
             }
@@ -256,14 +266,20 @@ public class GameManager : MonoBehaviour
             float mouseDragDistance = Vector2.Distance(initialMousePosition, Mouse.current.position.ReadValue());
             if (mouseDragDistance <= clickTolerance) // click event
             {
+                if (selectedPiece != null)
+                    selectedPiece.SetHighLight(false);
+
                 if (pointedPiece != null)
                 {
                     selectedPiece = pointedPiece;
+                    selectedPiece.SetHighLight(true);
                     ClickPiece();
                 }
                 else if (pointedCube != null)
                 {
                     Move(pointedCube.chessPosition.x, pointedCube.chessPosition.y, pointedCube.chessPosition.z);
+                    selectedPiece.SetHighLight(false);
+                    selectedPiece = null;
                     cubeManager.ClearCubes();
                 }
             }
@@ -307,100 +323,31 @@ public class GameManager : MonoBehaviour
     {
         moveables.Clear();
         eatables.Clear();
-        if (selectedPiece == null)
-        {
-            cubeManager.ClearCubes();
-            return;
-        }
-
         string type = selectedPiece.name.Split(' ')[0];
-        for (int x = 0; x < 4; x++)
-        {
-            for (int y = 0; y < 4; y++)
-            {
-                for (int z = 0; z < 4; z++)
-                {
-                    int3 selPiecePos = selectedPiece.chessPosition;
-                    int sameAxis = (x == selPiecePos.x ? 1 : 0) + (y == selPiecePos.y ? 1 : 0) + (z == selPiecePos.z ? 1 : 0);
-                    switch (type)
-                    {
-                        case "King":
-                            if (Abs(x - selPiecePos.x) <= 1 && Abs(y - selPiecePos.y) <= 1 && Abs(z - selPiecePos.z) <= 1)
-                                AddMoveable(x, y, z);
-                            break;
+        int3 pos = selectedPiece.chessPosition;
 
-                        case "Queen":
-                            if (x == selPiecePos.x && Abs(y - selPiecePos.y) == Abs(z - selPiecePos.z) ||
-                                y == selPiecePos.y && Abs(x - selPiecePos.x) == Abs(z - selPiecePos.z) ||
-                                z == selPiecePos.z && Abs(x - selPiecePos.x) == Abs(y - selPiecePos.y) ||
-                                sameAxis == 2)
-                                AddMoveable(x, y, z);
-                            break;
+        if (type == "Rook" || type == "Queen")
+            FindVerticalMoves(pos);
+        if (type == "Bishop" || type == "Queen")
+            FindDiagonalMoves(pos);
+        else
+            FindNoneBlockableMoves(type, pos);
 
-                        case "Rook":
-                            if (sameAxis == 2)
-                                AddMoveable(x, y, z);
-                            break;
-
-                        case "Bishop":
-                            if (x == selPiecePos.x && Abs(y - selPiecePos.y) == Abs(z - selPiecePos.z) ||
-                                y == selPiecePos.y && Abs(x - selPiecePos.x) == Abs(z - selPiecePos.z) ||
-                                z == selPiecePos.z && Abs(x - selPiecePos.x) == Abs(y - selPiecePos.y))
-                                AddMoveable(x, y, z);
-                            break;
-
-                        case "Knight":
-                            if ((Abs(x - selPiecePos.x) == 2 && Abs(y - selPiecePos.y) == 1 && z == selPiecePos.z) ||
-                                (Abs(x - selPiecePos.x) == 1 && Abs(y - selPiecePos.y) == 2 && z == selPiecePos.z) ||
-                                (Abs(z - selPiecePos.z) == 2 && Abs(x - selPiecePos.x) == 1 && y == selPiecePos.y) ||
-                                (Abs(z - selPiecePos.z) == 1 && Abs(x - selPiecePos.x) == 2 && y == selPiecePos.y) ||
-                                (Abs(y - selPiecePos.y) == 2 && Abs(z - selPiecePos.z) == 1 && x == selPiecePos.x) ||
-                                (Abs(y - selPiecePos.y) == 1 && Abs(z - selPiecePos.z) == 2 && x == selPiecePos.x))
-                                AddMoveable(x, y, z);
-                            break;
-
-                        case "Pawn":
-                            // Button-Top arrangement
-                            int yMatch = selectedPiece.isDark2White ? y + 1 : y - 1; // white is at button
-                            if (yMatch == selPiecePos.y)
-                            {
-                                if (x == selPiecePos.x && z == selPiecePos.z)
-                                {
-                                    if (chessBoard[x, y, z] == null)
-                                        moveables.Add(new int3(x, y, z));
-                                }
-                                else if ((Abs(x - selPiecePos.x) == 1 && z == selPiecePos.z || Abs(z - selPiecePos.z) == 1 && x == selPiecePos.x) &&
-                                        chessBoard[x, y, z] != null &&
-                                        !chessBoard[x, y, z].CompareTag(selectedPiece.tag))
-                                    eatables.Add(new int3(x, y, z));
-                            }
-                            break;
-                    }
-                }
-            }
-        }
         cubeManager.SetCubes(moveables, eatables);
-
-        // helper method
-        void AddMoveable(int x, int y, int z)
-        {
-            if (chessBoard[x, y, z] == null)
-                moveables.Add(new int3(x, y, z));
-            else if (!chessBoard[x, y, z].CompareTag(selectedPiece.tag))
-                eatables.Add(new int3(x, y, z));
-        }
 
     }
 
     private void Move(int x, int y, int z)
     {
         inTransition = true;
-        ChessPiece targetPiece = chessBoard[x, y, z];
+        MoveableObject targetPiece = chessBoard[x, y, z];
 
         if (targetPiece != null)
-            targetPiece.Eaten(new(0, 0, 5));
+            targetPiece.PieceEaten(new Vector3((isWhiteTurn ? 4 : -4) * separation, 0, 0)); // Move the eaten piece to side
 
-        if (selectedPiece.isDark2White && y == 0 || !selectedPiece.isDark2White && y == 3) // Pawn promotion / reverse in direction
+        // Pawn promotion / reverse in direction
+        if (selectedPiece.name.Split(" ")[0] == "Pawn" &&
+            (selectedPiece.isDark2White && y == 0 || !selectedPiece.isDark2White && y == 3))
         {
             selectedPiece.isDark2White = !selectedPiece.isDark2White;
             selectedPiece.UpsideDown();
@@ -417,6 +364,7 @@ public class GameManager : MonoBehaviour
 
         void SwitchTurn()
         {
+            gridManager.Revolve();
             foreach (var piece in chessBoard)
             {
                 if (piece != null)
@@ -434,6 +382,8 @@ public class GameManager : MonoBehaviour
 
     }
 
+    // ------------------------------------ Camera Movements -------------------------------------------------------------------
+
     private void UpdateCamera()
     {
         radius = Clamp(radius, minRadius, maxRadius);
@@ -442,8 +392,8 @@ public class GameManager : MonoBehaviour
         float x = radius * Sin(phi * Deg2Rad) * Cos(theta * Deg2Rad);
         float y = radius * Cos(phi * Deg2Rad);
         float z = radius * Sin(phi * Deg2Rad) * Sin(theta * Deg2Rad);
-        Camera.main.transform.position = new Vector3(x, y, z);
-        Camera.main.transform.LookAt(Vector3.zero);
+        Camera.main.transform.position = new Vector3(x, y + cameraYOffset, z);
+        Camera.main.transform.LookAt(new Vector3(0, cameraYOffset, 0));
     }
 
     private void MoveCamera(float targetRadius, float targetTheta, float targetPhi, float duration, System.Action onComplete = null)
@@ -481,6 +431,386 @@ public class GameManager : MonoBehaviour
         }
 
     }
+
+    // ------------------------------------ Find Possible Moves ------------------------------------------------------------------------
+
+    void FindVerticalMoves(int3 pos)
+        {
+            // x+ move
+            for (int i = 1; i < 4; i++)
+            {
+                int x = pos.x + i;
+                if (x > 3) break;
+
+                if (chessBoard[x, pos.y, pos.z] == null)
+                    moveables.Add(new int3(x, pos.y, pos.z));
+                else if (!chessBoard[x, pos.y, pos.z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(x, pos.y, pos.z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // x- move
+            for (int i = 1; i < 4; i++)
+            {
+                int x = pos.x - i;
+                if (x < 0) break;
+
+                if (chessBoard[x, pos.y, pos.z] == null)
+                    moveables.Add(new int3(x, pos.y, pos.z));
+                else if (!chessBoard[x, pos.y, pos.z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(x, pos.y, pos.z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // y+ move
+            for (int i = 1; i < 4; i++)
+            {
+                int y = pos.y + i;
+                if (y > 3) break;
+
+                if (chessBoard[pos.x, y, pos.z] == null)
+                    moveables.Add(new int3(pos.x, y, pos.z));
+                else if (!chessBoard[pos.x, y, pos.z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(pos.x, y, pos.z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // y- move
+            for (int i = 1; i < 4; i++)
+            {
+                int y = pos.y - i;
+                if (y < 0) break;
+
+                if (chessBoard[pos.x, y, pos.z] == null)
+                    moveables.Add(new int3(pos.x, y, pos.z));
+                else if (!chessBoard[pos.x, y, pos.z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(pos.x, y, pos.z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // z+ move
+            for (int i = 1; i < 4; i++)
+            {
+                int z = pos.z + i;
+                if (z > 3) break;
+
+                if (chessBoard[pos.x, pos.y, z] == null)
+                    moveables.Add(new int3(pos.x, pos.y, z));
+                else if (!chessBoard[pos.x, pos.y, z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(pos.x, pos.y, z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // z- move
+            for (int i = 1; i < 4; i++)
+            {
+                int z = pos.z - i;
+                if (z < 0) break;
+
+                if (chessBoard[pos.x, pos.y, z] == null)
+                    moveables.Add(new int3(pos.x, pos.y, z));
+                else if (!chessBoard[pos.x, pos.y, z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(pos.x, pos.y, z));
+                    break;
+                }
+                else
+                    break;
+            }
+        }
+
+        void FindDiagonalMoves(int3 pos)
+        {
+            // x+y+ move
+            for (int i = 1; i < 4; i++)
+            {
+                int x = pos.x + i;
+                int y = pos.y + i;
+                if (x > 3 || y > 3) break;
+
+                if (chessBoard[x, y, pos.z] == null)
+                    moveables.Add(new int3(x, y, pos.z));
+                else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(x, y, pos.z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // x+y- move
+            for (int i = 1; i < 4; i++)
+            {
+                int x = pos.x + i;
+                int y = pos.y - i;
+                if (x > 3 || y < 0) break;
+
+                if (chessBoard[x, y, pos.z] == null)
+                    moveables.Add(new int3(x, y, pos.z));
+                else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(x, y, pos.z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // x-y+ move
+            for (int i = 1; i < 4; i++)
+            {
+                int x = pos.x - i;
+                int y = pos.y + i;
+                if (x < 0 || y > 3) break;
+
+                if (chessBoard[x, y, pos.z] == null)
+                    moveables.Add(new int3(x, y, pos.z));
+                else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(x, y, pos.z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // x-y- move
+            for (int i = 1; i < 4; i++)
+            {
+                int x = pos.x - i;
+                int y = pos.y - i;
+                if (x < 0 || y < 0) break;
+
+                if (chessBoard[x, y, pos.z] == null)
+                    moveables.Add(new int3(x, y, pos.z));
+                else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(x, y, pos.z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // x+z+ move
+            for (int i = 1; i < 4; i++)
+            {
+                int x = pos.x + i;
+                int z = pos.z + i;
+                if (x > 3 || z > 3) break;
+
+                if (chessBoard[x, pos.y, z] == null)
+                    moveables.Add(new int3(x, pos.y, z));
+                else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(x, pos.y, z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // x+z- move
+            for (int i = 1; i < 4; i++)
+            {
+                int x = pos.x + i;
+                int z = pos.z - i;
+                if (x > 3 || z < 0) break;
+
+                if (chessBoard[x, pos.y, z] == null)
+                    moveables.Add(new int3(x, pos.y, z));
+                else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(x, pos.y, z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // x-z+ move
+            for (int i = 1; i < 4; i++)
+            {
+                int x = pos.x - i;
+                int z = pos.z + i;
+                if (x < 0 || z > 3) break;
+
+                if (chessBoard[x, pos.y, z] == null)
+                    moveables.Add(new int3(x, pos.y, z));
+                else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(x, pos.y, z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // x-z- move
+            for (int i = 1; i < 4; i++)
+            {
+                int x = pos.x - i;
+                int z = pos.z - i;
+                if (x < 0 || z < 0) break;
+
+                if (chessBoard[x, pos.y, z] == null)
+                    moveables.Add(new int3(x, pos.y, z));
+                else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(x, pos.y, z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // y+z+ move
+            for (int i = 1; i < 4; i++)
+            {
+                int y = pos.y + i;
+                int z = pos.z + i;
+                if (y > 3 || z > 3) break;
+
+                if (chessBoard[pos.x, y, z] == null)
+                    moveables.Add(new int3(pos.x, y, z));
+                else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(pos.x, y, z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // y+z- move
+            for (int i = 1; i < 4; i++)
+            {
+                int y = pos.y + i;
+                int z = pos.z - i;
+                if (y > 3 || z < 0) break;
+
+                if (chessBoard[pos.x, y, z] == null)
+                    moveables.Add(new int3(pos.x, y, z));
+                else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(pos.x, y, z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // y-z+ move
+            for (int i = 1; i < 4; i++)
+            {
+                int y = pos.y - i;
+                int z = pos.z + i;
+                if (y < 0 || z > 3) break;
+
+                if (chessBoard[pos.x, y, z] == null)
+                    moveables.Add(new int3(pos.x, y, z));
+                else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(pos.x, y, z));
+                    break;
+                }
+                else
+                    break;
+            }
+
+            // y-z- move
+            for (int i = 1; i < 4; i++)
+            {
+                int y = pos.y - i;
+                int z = pos.z - i;
+                if (y < 0 || z < 0) break;
+
+                if (chessBoard[pos.x, y, z] == null)
+                    moveables.Add(new int3(pos.x, y, z));
+                else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
+                {
+                    eatables.Add(new int3(pos.x, y, z));
+                    break;
+                }
+                else
+                    break;
+            }
+        }
+
+        void FindNoneBlockableMoves(string type, int3 pos)
+        {
+            for (int x = 0; x < 4; x++)
+            {
+                for (int y = 0; y < 4; y++)
+                {
+                    for (int z = 0; z < 4; z++)
+                    {
+                        switch (type)
+                        {
+                            case "King":
+                                if (Abs(x - pos.x) <= 1 && Abs(y - pos.y) <= 1 && Abs(z - pos.z) <= 1)
+                                    if (chessBoard[x, y, z] == null)
+                                        moveables.Add(new int3(x, y, z));
+                                    else if (!chessBoard[x, y, z].CompareTag(selectedPiece.tag))
+                                        eatables.Add(new int3(x, y, z)); ;
+                                break;
+
+                            case "Knight":
+                                if ((Abs(x - pos.x) == 2 && Abs(y - pos.y) == 1 && z == pos.z) ||
+                                    (Abs(x - pos.x) == 1 && Abs(y - pos.y) == 2 && z == pos.z) ||
+                                    (Abs(z - pos.z) == 2 && Abs(x - pos.x) == 1 && y == pos.y) ||
+                                    (Abs(z - pos.z) == 1 && Abs(x - pos.x) == 2 && y == pos.y) ||
+                                    (Abs(y - pos.y) == 2 && Abs(z - pos.z) == 1 && x == pos.x) ||
+                                    (Abs(y - pos.y) == 1 && Abs(z - pos.z) == 2 && x == pos.x))
+                                    if (chessBoard[x, y, z] == null)
+                                        moveables.Add(new int3(x, y, z));
+                                    else if (!chessBoard[x, y, z].CompareTag(selectedPiece.tag))
+                                        eatables.Add(new int3(x, y, z)); ;
+                                break;
+
+                            case "Pawn":
+                                // Button-Top arrangement
+                                int yMatch = selectedPiece.isDark2White ? y + 1 : y - 1; // white is at button
+                                if (yMatch == pos.y)
+                                {
+                                    if (x == pos.x && z == pos.z)
+                                    {
+                                        if (chessBoard[x, y, z] == null)
+                                            moveables.Add(new int3(x, y, z));
+                                    }
+                                    else if ((Abs(x - pos.x) == 1 && z == pos.z || Abs(z - pos.z) == 1 && x == pos.x) &&
+                                            chessBoard[x, y, z] != null &&
+                                            !chessBoard[x, y, z].CompareTag(selectedPiece.tag))
+                                        eatables.Add(new int3(x, y, z));
+                                }
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+
 
 
 }

@@ -96,12 +96,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9d0f1e4512a0c004aa4151b93f7ca006, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  yOffset: -0.2
+  yOffset: -0.7
   scale: 150
-  zRotation: 0
-  chessX: 0
-  chessY: 0
-  chessZ: 0
+  initRotation: {x: -90, y: 0, z: 0}
+  isDark2White: 0
+  chessPosition:
+    x: 0
+    y: 0
+    z: 0
 --- !u!64 &2103770153668844464
 MeshCollider:
   m_ObjectHideFlags: 0

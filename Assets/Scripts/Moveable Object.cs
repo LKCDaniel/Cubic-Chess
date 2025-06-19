@@ -3,25 +3,29 @@ using System.Collections;
 using Unity.Mathematics;
 using static UnityEngine.Mathf;
 
-public class ChessPiece : MonoBehaviour
+public class MoveableObject : MonoBehaviour
 {
     public float yOffset, scale;
-    public int3 chessPosition; // X, Y, Z coordinates in the chess board
+    public Vector3 initRotation;
     private Material material;
-    public bool isDark2White; // if it is moving from Dark to White
-    private bool upsideDown; // if the piece is upside down
+    [HideInInspector]
+    public bool isDark2White; // if a chess piece is moving from Dark to White
+    private bool upsideDown; // if nowupside down
+    [HideInInspector]
+    public int3 chessPosition; // X, Y, Z coordinates in the chess board
 
     void OnEnable()
     {
         transform.localScale = new Vector3(scale, scale, scale);
-        transform.rotation = Quaternion.Euler(-90, 0, 0);
+        transform.rotation = Quaternion.Euler(initRotation);
         material = GetComponent<Renderer>().material;
         material.SetInt("_ZWrite", 1); // force depth write, avoid abnormal rendering of transparent objects
     }
 
-    public void SetPosition(int3 chessPosition)
+    public void SetChessPosition(int3 position)
     {
-        transform.position = TargetPosition(chessPosition);
+        chessPosition = position;
+        transform.position = TargetPosition(position);
     }
 
     public void SetHighLight(bool on)
@@ -66,12 +70,12 @@ public class ChessPiece : MonoBehaviour
         }
     }
 
-    public void Eaten(int3 targetPosition)
+    public void PieceEaten(Vector3 targetPosition)
     {
         GetComponent<Collider>().enabled = false;
         StartCoroutine(FadeCoroutine(GameManager.Instance.pieceMoveTime, () =>
         {
-            transform.position = TargetPosition(targetPosition);
+            transform.position = targetPosition;
             StartCoroutine(EmergeCoroutine(GameManager.Instance.pieceMoveTime));
         }));
 
