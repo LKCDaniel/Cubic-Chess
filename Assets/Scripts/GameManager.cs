@@ -56,6 +56,7 @@ public class GameManager : MonoBehaviour
     private List<int3> eatables = new List<int3>(); // List of possible eats for the selected piece
     [HideInInspector]
     public bool isWhiteTurn = true;
+    private int whiteEats, darkEats;
     private bool inTransition; // Is a piece currently moving
 
     // chess pieces
@@ -109,7 +110,6 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
-        // Button-Top arrangement
         chessBoard = new MoveableObject[4, 4, 4]{ // x, y, z
         {
             { RookW1, PawnW1, KnightW1, PawnW2}, // x0, y0, z0-z3
@@ -192,13 +192,9 @@ public class GameManager : MonoBehaviour
 
             case GameState.End:
                 Debug.Log("Game over!");
+                UIManager.Instance.GameFinish(isWhiteTurn);
                 break;
         }
-
-    }
-
-    private void Win(bool isWhite)
-    {
 
     }
 
@@ -337,9 +333,31 @@ public class GameManager : MonoBehaviour
     {
         inTransition = true;
         MoveableObject targetPiece = chessBoard[x, y, z];
-
         if (targetPiece != null)
-            targetPiece.PieceEaten(new Vector3((isWhiteTurn ? 4 : -4) * separation, 0, 0)); // Move the eaten piece to side
+        {
+            Vector3 sidePosition;
+            sidePosition.y = -4.5f;
+
+            if (isWhiteTurn)
+            {
+                if (whiteEats < 8)
+                    sidePosition.x = 3 * separation;
+                else
+                    sidePosition.x = 3.5f * separation;
+                sidePosition.z = (-3.5f + whiteEats % 8) * separation / 2;
+                whiteEats++;
+            }
+            else
+            {
+                if (darkEats < 8)
+                    sidePosition.x = -3 * separation;
+                else
+                    sidePosition.x = -3.5f * separation;
+                sidePosition.z = (3.5f - whiteEats % 8) * separation / 2;
+                darkEats++;
+            }
+            targetPiece.PieceEaten(sidePosition); // Move the eaten piece to side
+        }
 
         // Pawn promotion / reverse in direction
         if (selectedPiece.name.Split(" ")[0] == "Pawn" &&
@@ -349,10 +367,8 @@ public class GameManager : MonoBehaviour
             selectedPiece.UpsideDown();
         }
 
-        if (targetPiece == KingW) // Dark win
-            Win(false);
-        else if (targetPiece == KingD) // White win
-            Win(true);
+        if (targetPiece == KingW || targetPiece == KingD) // Dark win
+            ChangeState(GameState.End);
 
         chessBoard[selectedPiece.chessPosition.x, selectedPiece.chessPosition.y, selectedPiece.chessPosition.z] = null;
         selectedPiece.MoveTo(new int3(x, y, z), SwitchTurn);
@@ -786,7 +802,6 @@ public class GameManager : MonoBehaviour
                             break;
 
                         case "Pawn":
-                            // Button-Top arrangement
                             int yMatch = selectedPiece.isDark2White ? y + 1 : y - 1; // white is at button
                             if (yMatch == pos.y)
                             {
