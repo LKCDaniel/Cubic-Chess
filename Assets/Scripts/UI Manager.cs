@@ -25,12 +25,6 @@ public class UIManager : MonoBehaviour
 
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-
-    }
-
     public void PauseOnClick()
     {
         if (GameManager.Instance.CurrentState == GameManager.GameState.Paused)
@@ -40,6 +34,20 @@ public class UIManager : MonoBehaviour
             previousState = GameManager.Instance.CurrentState;
             GameManager.Instance.ChangeState(GameManager.GameState.Paused);
         }
+    }
+
+    // 悔棋
+    public void RetractStepOnClick()
+    {
+        if (GameManager.Instance.inTransition || GameManager.Instance.CurrentState != GameManager.GameState.Running)
+            return;
+
+        
+    }
+
+    public void GameFinish(bool isWhiteWin)
+    {
+        
     }
 
     private void SetShade(float alpha)

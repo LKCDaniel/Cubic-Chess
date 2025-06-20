@@ -13,7 +13,7 @@ public class GridManager : MonoBehaviour
             Instance = this;
     }
 
-    public GameObject gridPrefab;
+    public GameObject darkGridPrefab, whiteGridPrefab;
     private List<GameObject> grids = new List<GameObject>();
 
     void Start()
@@ -24,15 +24,17 @@ public class GridManager : MonoBehaviour
             {
                 for (int z = 0; z < 4; z++)
                 {
+                    float sep = GameManager.Instance.separation;
+                    Vector3 position = new Vector3(x * sep - 1.5f * sep, y * sep - 2 * sep, z * sep - 1.5f * sep);
+                    GameObject prefab;
                     if ((x + y + z) % 2 == 0)
-                    {
-                        float sep = GameManager.Instance.separation;
-                        Vector3 position = new Vector3(x * sep - 1.5f * sep, y * sep - 2 * sep, z * sep - 1.5f * sep);
-                        GameObject grid = Instantiate(gridPrefab, position, Quaternion.identity);
-                        grid.transform.localScale = 0.1f * sep * Vector3.one;
-                        grid.GetComponent<MoveableObject>().yOffset = -0.5f * sep;
-                        grids.Add(grid);
-                    }
+                        prefab = darkGridPrefab;
+                    else
+                        prefab = whiteGridPrefab;
+                    GameObject grid = Instantiate(prefab, position, Quaternion.identity);
+                    grid.transform.localScale = 0.1f * sep * Vector3.one;
+                    grid.GetComponent<MoveableObject>().yOffset = -0.5f * sep;
+                    grids.Add(grid);
                 }
             }
         }

@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using static UnityEngine.Mathf;
 using System.Collections;
-using Unity.VisualScripting;
 
 public class GameManager : MonoBehaviour
 {
@@ -49,14 +48,18 @@ public class GameManager : MonoBehaviour
     // chess board, game variables
     [Header("Chess Board Settings")]
     public float separation; // separation between chess pieces
-    MoveableObject[,,] chessBoard; // 4*4*4, X from L to R, Y from B to T, Z from F to B
+    private MoveableObject[,,] chessBoard; // 4*4*4, X from L to R, Y from B to T, Z from F to B
+    private List<MoveableObject[,,]> records = new List<MoveableObject[,,]>();
+    private int currentStep;
     private MoveableObject pointedPiece, selectedPiece;
     private Cube pointedCube;
     private List<int3> moveables = new List<int3>(); // List of possible moves for the selected piece
     private List<int3> eatables = new List<int3>(); // List of possible eats for the selected piece
     [HideInInspector]
     public bool isWhiteTurn = true;
-    private bool inTransition; // Is a piece currently moving
+    private int whiteEats, darkEats;
+    [HideInInspector]
+    public bool inTransition; // Is a piece currently moving
 
     // chess pieces
     MoveableObject
@@ -109,7 +112,6 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
-        // Button-Top arrangement
         chessBoard = new MoveableObject[4, 4, 4]{ // x, y, z
         {
             { RookW1, PawnW1, KnightW1, PawnW2}, // x0, y0, z0-z3
@@ -192,13 +194,9 @@ public class GameManager : MonoBehaviour
 
             case GameState.End:
                 Debug.Log("Game over!");
+                UIManager.Instance.GameFinish(isWhiteTurn);
                 break;
         }
-
-    }
-
-    private void Win(bool isWhite)
-    {
 
     }
 
@@ -335,11 +333,42 @@ public class GameManager : MonoBehaviour
 
     private void Move(int x, int y, int z)
     {
+        // save the chess board to record
+        MoveableObject[,,] record = (MoveableObject[,,])chessBoard.Clone();
+        if (currentStep < records.Count)
+            records[currentStep] = record;
+        else
+            records.Add(record);
+        currentStep++;
+
+        // move behaviors
         inTransition = true;
         MoveableObject targetPiece = chessBoard[x, y, z];
-
         if (targetPiece != null)
-            targetPiece.PieceEaten(new Vector3((isWhiteTurn ? 4 : -4) * separation, 0, 0)); // Move the eaten piece to side
+        {
+            Vector3 sidePosition;
+            sidePosition.y = -4.5f;
+
+            if (isWhiteTurn)
+            {
+                if (whiteEats < 8)
+                    sidePosition.x = 3 * separation;
+                else
+                    sidePosition.x = 3.5f * separation;
+                sidePosition.z = (-3.5f + whiteEats % 8) * separation / 2;
+                whiteEats++;
+            }
+            else
+            {
+                if (darkEats < 8)
+                    sidePosition.x = -3 * separation;
+                else
+                    sidePosition.x = -3.5f * separation;
+                sidePosition.z = (3.5f - whiteEats % 8) * separation / 2;
+                darkEats++;
+            }
+            targetPiece.PieceEaten(sidePosition); // Move the eaten piece to side
+        }
 
         // Pawn promotion / reverse in direction
         if (selectedPiece.name.Split(" ")[0] == "Pawn" &&
@@ -349,10 +378,8 @@ public class GameManager : MonoBehaviour
             selectedPiece.UpsideDown();
         }
 
-        if (targetPiece == KingW) // Dark win
-            Win(false);
-        else if (targetPiece == KingD) // White win
-            Win(true);
+        if (targetPiece == KingW || targetPiece == KingD) // Dark win
+            ChangeState(GameState.End);
 
         chessBoard[selectedPiece.chessPosition.x, selectedPiece.chessPosition.y, selectedPiece.chessPosition.z] = null;
         selectedPiece.MoveTo(new int3(x, y, z), SwitchTurn);
@@ -371,30 +398,43 @@ public class GameManager : MonoBehaviour
                 inTransition = false;
                 isWhiteTurn = !isWhiteTurn;
             });
-            storedRadius = radius;
-            storedTheta = theta;
-            storedPhi = phi;
         }
+
+    }
+
+    public void RetractStep()
+    {
+        if (currentStep == 0)
+            return;
+
+        isWhiteTurn = !isWhiteTurn;
+        currentStep--;
+        chessBoard = records[currentStep];
+
+        foreach (var piece in chessBoard)
+        {
+            if (piece != null)
+                piece.SetChessPosition(piece.chessPosition);
+        }
+
+        float r = radius = storedRadius;
+        float t = theta = storedTheta;
+        float p = phi = storedPhi;
+        UpdateCamera();
+        storedRadius = r;
+        storedTheta = t;
+        storedPhi = p;
 
     }
 
     // ------------------------------------ Camera Movements -------------------------------------------------------------------
 
-    private void UpdateCamera()
-    {
-        radius = Clamp(radius, minRadius, maxRadius);
-        theta %= 360;
-        phi = Clamp(phi, minPhi, maxPhi);
-        float x = radius * Sin(phi * Deg2Rad) * Cos(theta * Deg2Rad);
-        float y = radius * Cos(phi * Deg2Rad);
-        float z = radius * Sin(phi * Deg2Rad) * Sin(theta * Deg2Rad);
-        Camera.main.transform.position = new Vector3(x, y + cameraYOffset, z);
-        Camera.main.transform.LookAt(new Vector3(0, cameraYOffset, 0));
-    }
-
     private void MoveCamera(float targetRadius, float targetTheta, float targetPhi, float duration, System.Action onComplete = null)
     {
         StartCoroutine(MoveCameraCoroutine(targetRadius, targetTheta, targetPhi, duration, onComplete));
+        storedRadius = radius;
+        storedTheta = theta;
+        storedPhi = phi;
 
         IEnumerator MoveCameraCoroutine(float targetRadius, float targetTheta, float targetPhi, float duration, System.Action onComplete)
         {
@@ -426,6 +466,18 @@ public class GameManager : MonoBehaviour
             onComplete?.Invoke();
         }
 
+    }
+
+    private void UpdateCamera()
+    {
+        radius = Clamp(radius, minRadius, maxRadius);
+        theta %= 360;
+        phi = Clamp(phi, minPhi, maxPhi);
+        float x = radius * Sin(phi * Deg2Rad) * Cos(theta * Deg2Rad);
+        float y = radius * Cos(phi * Deg2Rad);
+        float z = radius * Sin(phi * Deg2Rad) * Sin(theta * Deg2Rad);
+        Camera.main.transform.position = new Vector3(x, y + cameraYOffset, z);
+        Camera.main.transform.LookAt(new Vector3(0, cameraYOffset, 0));
     }
 
     // ------------------------------------ Find Possible Moves ------------------------------------------------------------------------
@@ -786,7 +838,6 @@ public class GameManager : MonoBehaviour
                             break;
 
                         case "Pawn":
-                            // Button-Top arrangement
                             int yMatch = selectedPiece.isDark2White ? y + 1 : y - 1; // white is at button
                             if (yMatch == pos.y)
                             {
