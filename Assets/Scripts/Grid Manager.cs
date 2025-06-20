@@ -9,7 +9,8 @@ public class GridManager : MonoBehaviour
     {
         if (Instance != null)
             Destroy(gameObject);
-        Instance = this;
+        else
+            Instance = this;
     }
 
     public GameObject gridPrefab;

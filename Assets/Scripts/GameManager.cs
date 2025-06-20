@@ -13,15 +13,11 @@ public class GameManager : MonoBehaviour
     {
         if (Instance != null)
             Destroy(gameObject);
-        Instance = this;
+        else
+            Instance = this;
     }
 
     // ------------------------------------ Game Variables -------------------------------------------------------------------
-
-    // Managers
-    private CubeManager cubeManager;
-    private UIManager uiManager;
-    private GridManager gridManager;
 
     // Game states
     public enum GameState { Entry, Paused, Running, End }
@@ -76,10 +72,6 @@ public class GameManager : MonoBehaviour
 
     void OnEnable()
     {
-        cubeManager = CubeManager.Instance;
-        uiManager = UIManager.Instance;
-        gridManager = GridManager.Instance;
-
         KingW = GameObject.Find("King White").GetComponent<MoveableObject>();
         KingD = GameObject.Find("King Dark").GetComponent<MoveableObject>();
         QueenW = GameObject.Find("Queen White").GetComponent<MoveableObject>();
@@ -160,7 +152,7 @@ public class GameManager : MonoBehaviour
 
     }
 
-    // ------------------------------------ Executions -------------------------------------------------------------------
+    // ------------------------------------ Game Flow -------------------------------------------------------------------
 
     void Update()
     {
@@ -177,7 +169,7 @@ public class GameManager : MonoBehaviour
             case GameState.Entry:
                 Debug.Log("Game is starting");
                 inTransition = true;
-                uiManager.FadeShade();
+                UIManager.Instance.FadeShade();
                 MoveCamera(initRadius, initTheta, initPhi, entryTime, () =>
                 {
                     inTransition = false;
@@ -207,6 +199,40 @@ public class GameManager : MonoBehaviour
 
     private void Win(bool isWhite)
     {
+
+    }
+
+    // ------------------------------------ Inputs -------------------------------------------------------------------
+
+    private void KeyboardControl()
+    {
+        // onclick pause button
+        if (Keyboard.current.escapeKey.wasPressedThisFrame)
+            UIManager.Instance.PauseOnClick();
+
+        if (Keyboard.current == null || CurrentState != GameState.Running) return;
+
+        // zoom camera: R, F
+        if (Keyboard.current.rKey.isPressed)
+            radius -= keyZoomSpeed * Time.deltaTime;
+
+        if (Keyboard.current.fKey.isPressed)
+            radius += keyZoomSpeed * Time.deltaTime;
+
+        // rotate camera: A, D, W, S or Arrow keys
+        if (Keyboard.current.leftArrowKey.isPressed || Keyboard.current.aKey.isPressed)
+            theta -= keyThetaSpeed * Time.deltaTime;
+
+        if (Keyboard.current.rightArrowKey.isPressed || Keyboard.current.dKey.isPressed)
+            theta += keyThetaSpeed * Time.deltaTime;
+
+        if (Keyboard.current.upArrowKey.isPressed || Keyboard.current.wKey.isPressed)
+            phi -= keyPhiSpeed * Time.deltaTime;
+
+        if (Keyboard.current.downArrowKey.isPressed || Keyboard.current.sKey.isPressed)
+            phi += keyPhiSpeed * Time.deltaTime;
+
+        UpdateCamera();
 
     }
 
@@ -280,44 +306,14 @@ public class GameManager : MonoBehaviour
                     Move(pointedCube.chessPosition.x, pointedCube.chessPosition.y, pointedCube.chessPosition.z);
                     selectedPiece.SetHighLight(false);
                     selectedPiece = null;
-                    cubeManager.ClearCubes();
+                    CubeManager.Instance.ClearCubes();
                 }
             }
         }
 
     }
 
-    private void KeyboardControl()
-    {
-        // onclick pause button
-        if (Keyboard.current.escapeKey.wasPressedThisFrame)
-            uiManager.PauseOnClick();
-
-        if (Keyboard.current == null || CurrentState != GameState.Running) return;
-
-        // zoom camera: R, F
-        if (Keyboard.current.rKey.isPressed)
-            radius -= keyZoomSpeed * Time.deltaTime;
-
-        if (Keyboard.current.fKey.isPressed)
-            radius += keyZoomSpeed * Time.deltaTime;
-
-        // rotate camera: A, D, W, S or Arrow keys
-        if (Keyboard.current.leftArrowKey.isPressed || Keyboard.current.aKey.isPressed)
-            theta -= keyThetaSpeed * Time.deltaTime;
-
-        if (Keyboard.current.rightArrowKey.isPressed || Keyboard.current.dKey.isPressed)
-            theta += keyThetaSpeed * Time.deltaTime;
-
-        if (Keyboard.current.upArrowKey.isPressed || Keyboard.current.wKey.isPressed)
-            phi -= keyPhiSpeed * Time.deltaTime;
-
-        if (Keyboard.current.downArrowKey.isPressed || Keyboard.current.sKey.isPressed)
-            phi += keyPhiSpeed * Time.deltaTime;
-
-        UpdateCamera();
-
-    }
+    // ------------------------------------ Executions -------------------------------------------------------------------
 
     private void ClickPiece()
     {
@@ -333,7 +329,7 @@ public class GameManager : MonoBehaviour
         else
             FindNoneBlockableMoves(type, pos);
 
-        cubeManager.SetCubes(moveables, eatables);
+        CubeManager.Instance.SetCubes(moveables, eatables);
 
     }
 
@@ -364,7 +360,7 @@ public class GameManager : MonoBehaviour
 
         void SwitchTurn()
         {
-            gridManager.Revolve();
+            GridManager.Instance.Revolve();
             foreach (var piece in chessBoard)
             {
                 if (piece != null)
@@ -435,381 +431,381 @@ public class GameManager : MonoBehaviour
     // ------------------------------------ Find Possible Moves ------------------------------------------------------------------------
 
     void FindVerticalMoves(int3 pos)
+    {
+        // x+ move
+        for (int i = 1; i < 4; i++)
         {
-            // x+ move
-            for (int i = 1; i < 4; i++)
+            int x = pos.x + i;
+            if (x > 3) break;
+
+            if (chessBoard[x, pos.y, pos.z] == null)
+                moveables.Add(new int3(x, pos.y, pos.z));
+            else if (!chessBoard[x, pos.y, pos.z].CompareTag(selectedPiece.tag))
             {
-                int x = pos.x + i;
-                if (x > 3) break;
-
-                if (chessBoard[x, pos.y, pos.z] == null)
-                    moveables.Add(new int3(x, pos.y, pos.z));
-                else if (!chessBoard[x, pos.y, pos.z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(x, pos.y, pos.z));
-                    break;
-                }
-                else
-                    break;
+                eatables.Add(new int3(x, pos.y, pos.z));
+                break;
             }
-
-            // x- move
-            for (int i = 1; i < 4; i++)
-            {
-                int x = pos.x - i;
-                if (x < 0) break;
-
-                if (chessBoard[x, pos.y, pos.z] == null)
-                    moveables.Add(new int3(x, pos.y, pos.z));
-                else if (!chessBoard[x, pos.y, pos.z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(x, pos.y, pos.z));
-                    break;
-                }
-                else
-                    break;
-            }
-
-            // y+ move
-            for (int i = 1; i < 4; i++)
-            {
-                int y = pos.y + i;
-                if (y > 3) break;
-
-                if (chessBoard[pos.x, y, pos.z] == null)
-                    moveables.Add(new int3(pos.x, y, pos.z));
-                else if (!chessBoard[pos.x, y, pos.z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(pos.x, y, pos.z));
-                    break;
-                }
-                else
-                    break;
-            }
-
-            // y- move
-            for (int i = 1; i < 4; i++)
-            {
-                int y = pos.y - i;
-                if (y < 0) break;
-
-                if (chessBoard[pos.x, y, pos.z] == null)
-                    moveables.Add(new int3(pos.x, y, pos.z));
-                else if (!chessBoard[pos.x, y, pos.z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(pos.x, y, pos.z));
-                    break;
-                }
-                else
-                    break;
-            }
-
-            // z+ move
-            for (int i = 1; i < 4; i++)
-            {
-                int z = pos.z + i;
-                if (z > 3) break;
-
-                if (chessBoard[pos.x, pos.y, z] == null)
-                    moveables.Add(new int3(pos.x, pos.y, z));
-                else if (!chessBoard[pos.x, pos.y, z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(pos.x, pos.y, z));
-                    break;
-                }
-                else
-                    break;
-            }
-
-            // z- move
-            for (int i = 1; i < 4; i++)
-            {
-                int z = pos.z - i;
-                if (z < 0) break;
-
-                if (chessBoard[pos.x, pos.y, z] == null)
-                    moveables.Add(new int3(pos.x, pos.y, z));
-                else if (!chessBoard[pos.x, pos.y, z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(pos.x, pos.y, z));
-                    break;
-                }
-                else
-                    break;
-            }
+            else
+                break;
         }
 
-        void FindDiagonalMoves(int3 pos)
+        // x- move
+        for (int i = 1; i < 4; i++)
         {
-            // x+y+ move
-            for (int i = 1; i < 4; i++)
+            int x = pos.x - i;
+            if (x < 0) break;
+
+            if (chessBoard[x, pos.y, pos.z] == null)
+                moveables.Add(new int3(x, pos.y, pos.z));
+            else if (!chessBoard[x, pos.y, pos.z].CompareTag(selectedPiece.tag))
             {
-                int x = pos.x + i;
-                int y = pos.y + i;
-                if (x > 3 || y > 3) break;
-
-                if (chessBoard[x, y, pos.z] == null)
-                    moveables.Add(new int3(x, y, pos.z));
-                else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(x, y, pos.z));
-                    break;
-                }
-                else
-                    break;
+                eatables.Add(new int3(x, pos.y, pos.z));
+                break;
             }
-
-            // x+y- move
-            for (int i = 1; i < 4; i++)
-            {
-                int x = pos.x + i;
-                int y = pos.y - i;
-                if (x > 3 || y < 0) break;
-
-                if (chessBoard[x, y, pos.z] == null)
-                    moveables.Add(new int3(x, y, pos.z));
-                else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(x, y, pos.z));
-                    break;
-                }
-                else
-                    break;
-            }
-
-            // x-y+ move
-            for (int i = 1; i < 4; i++)
-            {
-                int x = pos.x - i;
-                int y = pos.y + i;
-                if (x < 0 || y > 3) break;
-
-                if (chessBoard[x, y, pos.z] == null)
-                    moveables.Add(new int3(x, y, pos.z));
-                else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(x, y, pos.z));
-                    break;
-                }
-                else
-                    break;
-            }
-
-            // x-y- move
-            for (int i = 1; i < 4; i++)
-            {
-                int x = pos.x - i;
-                int y = pos.y - i;
-                if (x < 0 || y < 0) break;
-
-                if (chessBoard[x, y, pos.z] == null)
-                    moveables.Add(new int3(x, y, pos.z));
-                else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(x, y, pos.z));
-                    break;
-                }
-                else
-                    break;
-            }
-
-            // x+z+ move
-            for (int i = 1; i < 4; i++)
-            {
-                int x = pos.x + i;
-                int z = pos.z + i;
-                if (x > 3 || z > 3) break;
-
-                if (chessBoard[x, pos.y, z] == null)
-                    moveables.Add(new int3(x, pos.y, z));
-                else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(x, pos.y, z));
-                    break;
-                }
-                else
-                    break;
-            }
-
-            // x+z- move
-            for (int i = 1; i < 4; i++)
-            {
-                int x = pos.x + i;
-                int z = pos.z - i;
-                if (x > 3 || z < 0) break;
-
-                if (chessBoard[x, pos.y, z] == null)
-                    moveables.Add(new int3(x, pos.y, z));
-                else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(x, pos.y, z));
-                    break;
-                }
-                else
-                    break;
-            }
-
-            // x-z+ move
-            for (int i = 1; i < 4; i++)
-            {
-                int x = pos.x - i;
-                int z = pos.z + i;
-                if (x < 0 || z > 3) break;
-
-                if (chessBoard[x, pos.y, z] == null)
-                    moveables.Add(new int3(x, pos.y, z));
-                else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(x, pos.y, z));
-                    break;
-                }
-                else
-                    break;
-            }
-
-            // x-z- move
-            for (int i = 1; i < 4; i++)
-            {
-                int x = pos.x - i;
-                int z = pos.z - i;
-                if (x < 0 || z < 0) break;
-
-                if (chessBoard[x, pos.y, z] == null)
-                    moveables.Add(new int3(x, pos.y, z));
-                else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(x, pos.y, z));
-                    break;
-                }
-                else
-                    break;
-            }
-
-            // y+z+ move
-            for (int i = 1; i < 4; i++)
-            {
-                int y = pos.y + i;
-                int z = pos.z + i;
-                if (y > 3 || z > 3) break;
-
-                if (chessBoard[pos.x, y, z] == null)
-                    moveables.Add(new int3(pos.x, y, z));
-                else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(pos.x, y, z));
-                    break;
-                }
-                else
-                    break;
-            }
-
-            // y+z- move
-            for (int i = 1; i < 4; i++)
-            {
-                int y = pos.y + i;
-                int z = pos.z - i;
-                if (y > 3 || z < 0) break;
-
-                if (chessBoard[pos.x, y, z] == null)
-                    moveables.Add(new int3(pos.x, y, z));
-                else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(pos.x, y, z));
-                    break;
-                }
-                else
-                    break;
-            }
-
-            // y-z+ move
-            for (int i = 1; i < 4; i++)
-            {
-                int y = pos.y - i;
-                int z = pos.z + i;
-                if (y < 0 || z > 3) break;
-
-                if (chessBoard[pos.x, y, z] == null)
-                    moveables.Add(new int3(pos.x, y, z));
-                else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(pos.x, y, z));
-                    break;
-                }
-                else
-                    break;
-            }
-
-            // y-z- move
-            for (int i = 1; i < 4; i++)
-            {
-                int y = pos.y - i;
-                int z = pos.z - i;
-                if (y < 0 || z < 0) break;
-
-                if (chessBoard[pos.x, y, z] == null)
-                    moveables.Add(new int3(pos.x, y, z));
-                else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
-                {
-                    eatables.Add(new int3(pos.x, y, z));
-                    break;
-                }
-                else
-                    break;
-            }
+            else
+                break;
         }
 
-        void FindNoneBlockableMoves(string type, int3 pos)
+        // y+ move
+        for (int i = 1; i < 4; i++)
         {
-            for (int x = 0; x < 4; x++)
+            int y = pos.y + i;
+            if (y > 3) break;
+
+            if (chessBoard[pos.x, y, pos.z] == null)
+                moveables.Add(new int3(pos.x, y, pos.z));
+            else if (!chessBoard[pos.x, y, pos.z].CompareTag(selectedPiece.tag))
             {
-                for (int y = 0; y < 4; y++)
+                eatables.Add(new int3(pos.x, y, pos.z));
+                break;
+            }
+            else
+                break;
+        }
+
+        // y- move
+        for (int i = 1; i < 4; i++)
+        {
+            int y = pos.y - i;
+            if (y < 0) break;
+
+            if (chessBoard[pos.x, y, pos.z] == null)
+                moveables.Add(new int3(pos.x, y, pos.z));
+            else if (!chessBoard[pos.x, y, pos.z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(pos.x, y, pos.z));
+                break;
+            }
+            else
+                break;
+        }
+
+        // z+ move
+        for (int i = 1; i < 4; i++)
+        {
+            int z = pos.z + i;
+            if (z > 3) break;
+
+            if (chessBoard[pos.x, pos.y, z] == null)
+                moveables.Add(new int3(pos.x, pos.y, z));
+            else if (!chessBoard[pos.x, pos.y, z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(pos.x, pos.y, z));
+                break;
+            }
+            else
+                break;
+        }
+
+        // z- move
+        for (int i = 1; i < 4; i++)
+        {
+            int z = pos.z - i;
+            if (z < 0) break;
+
+            if (chessBoard[pos.x, pos.y, z] == null)
+                moveables.Add(new int3(pos.x, pos.y, z));
+            else if (!chessBoard[pos.x, pos.y, z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(pos.x, pos.y, z));
+                break;
+            }
+            else
+                break;
+        }
+    }
+
+    void FindDiagonalMoves(int3 pos)
+    {
+        // x+y+ move
+        for (int i = 1; i < 4; i++)
+        {
+            int x = pos.x + i;
+            int y = pos.y + i;
+            if (x > 3 || y > 3) break;
+
+            if (chessBoard[x, y, pos.z] == null)
+                moveables.Add(new int3(x, y, pos.z));
+            else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(x, y, pos.z));
+                break;
+            }
+            else
+                break;
+        }
+
+        // x+y- move
+        for (int i = 1; i < 4; i++)
+        {
+            int x = pos.x + i;
+            int y = pos.y - i;
+            if (x > 3 || y < 0) break;
+
+            if (chessBoard[x, y, pos.z] == null)
+                moveables.Add(new int3(x, y, pos.z));
+            else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(x, y, pos.z));
+                break;
+            }
+            else
+                break;
+        }
+
+        // x-y+ move
+        for (int i = 1; i < 4; i++)
+        {
+            int x = pos.x - i;
+            int y = pos.y + i;
+            if (x < 0 || y > 3) break;
+
+            if (chessBoard[x, y, pos.z] == null)
+                moveables.Add(new int3(x, y, pos.z));
+            else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(x, y, pos.z));
+                break;
+            }
+            else
+                break;
+        }
+
+        // x-y- move
+        for (int i = 1; i < 4; i++)
+        {
+            int x = pos.x - i;
+            int y = pos.y - i;
+            if (x < 0 || y < 0) break;
+
+            if (chessBoard[x, y, pos.z] == null)
+                moveables.Add(new int3(x, y, pos.z));
+            else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(x, y, pos.z));
+                break;
+            }
+            else
+                break;
+        }
+
+        // x+z+ move
+        for (int i = 1; i < 4; i++)
+        {
+            int x = pos.x + i;
+            int z = pos.z + i;
+            if (x > 3 || z > 3) break;
+
+            if (chessBoard[x, pos.y, z] == null)
+                moveables.Add(new int3(x, pos.y, z));
+            else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(x, pos.y, z));
+                break;
+            }
+            else
+                break;
+        }
+
+        // x+z- move
+        for (int i = 1; i < 4; i++)
+        {
+            int x = pos.x + i;
+            int z = pos.z - i;
+            if (x > 3 || z < 0) break;
+
+            if (chessBoard[x, pos.y, z] == null)
+                moveables.Add(new int3(x, pos.y, z));
+            else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(x, pos.y, z));
+                break;
+            }
+            else
+                break;
+        }
+
+        // x-z+ move
+        for (int i = 1; i < 4; i++)
+        {
+            int x = pos.x - i;
+            int z = pos.z + i;
+            if (x < 0 || z > 3) break;
+
+            if (chessBoard[x, pos.y, z] == null)
+                moveables.Add(new int3(x, pos.y, z));
+            else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(x, pos.y, z));
+                break;
+            }
+            else
+                break;
+        }
+
+        // x-z- move
+        for (int i = 1; i < 4; i++)
+        {
+            int x = pos.x - i;
+            int z = pos.z - i;
+            if (x < 0 || z < 0) break;
+
+            if (chessBoard[x, pos.y, z] == null)
+                moveables.Add(new int3(x, pos.y, z));
+            else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(x, pos.y, z));
+                break;
+            }
+            else
+                break;
+        }
+
+        // y+z+ move
+        for (int i = 1; i < 4; i++)
+        {
+            int y = pos.y + i;
+            int z = pos.z + i;
+            if (y > 3 || z > 3) break;
+
+            if (chessBoard[pos.x, y, z] == null)
+                moveables.Add(new int3(pos.x, y, z));
+            else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(pos.x, y, z));
+                break;
+            }
+            else
+                break;
+        }
+
+        // y+z- move
+        for (int i = 1; i < 4; i++)
+        {
+            int y = pos.y + i;
+            int z = pos.z - i;
+            if (y > 3 || z < 0) break;
+
+            if (chessBoard[pos.x, y, z] == null)
+                moveables.Add(new int3(pos.x, y, z));
+            else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(pos.x, y, z));
+                break;
+            }
+            else
+                break;
+        }
+
+        // y-z+ move
+        for (int i = 1; i < 4; i++)
+        {
+            int y = pos.y - i;
+            int z = pos.z + i;
+            if (y < 0 || z > 3) break;
+
+            if (chessBoard[pos.x, y, z] == null)
+                moveables.Add(new int3(pos.x, y, z));
+            else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(pos.x, y, z));
+                break;
+            }
+            else
+                break;
+        }
+
+        // y-z- move
+        for (int i = 1; i < 4; i++)
+        {
+            int y = pos.y - i;
+            int z = pos.z - i;
+            if (y < 0 || z < 0) break;
+
+            if (chessBoard[pos.x, y, z] == null)
+                moveables.Add(new int3(pos.x, y, z));
+            else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
+            {
+                eatables.Add(new int3(pos.x, y, z));
+                break;
+            }
+            else
+                break;
+        }
+    }
+
+    void FindNoneBlockableMoves(string type, int3 pos)
+    {
+        for (int x = 0; x < 4; x++)
+        {
+            for (int y = 0; y < 4; y++)
+            {
+                for (int z = 0; z < 4; z++)
                 {
-                    for (int z = 0; z < 4; z++)
+                    switch (type)
                     {
-                        switch (type)
-                        {
-                            case "King":
-                                if (Abs(x - pos.x) <= 1 && Abs(y - pos.y) <= 1 && Abs(z - pos.z) <= 1)
-                                    if (chessBoard[x, y, z] == null)
-                                        moveables.Add(new int3(x, y, z));
-                                    else if (!chessBoard[x, y, z].CompareTag(selectedPiece.tag))
-                                        eatables.Add(new int3(x, y, z)); ;
-                                break;
+                        case "King":
+                            if (Abs(x - pos.x) <= 1 && Abs(y - pos.y) <= 1 && Abs(z - pos.z) <= 1)
+                                if (chessBoard[x, y, z] == null)
+                                    moveables.Add(new int3(x, y, z));
+                                else if (!chessBoard[x, y, z].CompareTag(selectedPiece.tag))
+                                    eatables.Add(new int3(x, y, z)); ;
+                            break;
 
-                            case "Knight":
-                                if ((Abs(x - pos.x) == 2 && Abs(y - pos.y) == 1 && z == pos.z) ||
-                                    (Abs(x - pos.x) == 1 && Abs(y - pos.y) == 2 && z == pos.z) ||
-                                    (Abs(z - pos.z) == 2 && Abs(x - pos.x) == 1 && y == pos.y) ||
-                                    (Abs(z - pos.z) == 1 && Abs(x - pos.x) == 2 && y == pos.y) ||
-                                    (Abs(y - pos.y) == 2 && Abs(z - pos.z) == 1 && x == pos.x) ||
-                                    (Abs(y - pos.y) == 1 && Abs(z - pos.z) == 2 && x == pos.x))
-                                    if (chessBoard[x, y, z] == null)
-                                        moveables.Add(new int3(x, y, z));
-                                    else if (!chessBoard[x, y, z].CompareTag(selectedPiece.tag))
-                                        eatables.Add(new int3(x, y, z)); ;
-                                break;
+                        case "Knight":
+                            if ((Abs(x - pos.x) == 2 && Abs(y - pos.y) == 1 && z == pos.z) ||
+                                (Abs(x - pos.x) == 1 && Abs(y - pos.y) == 2 && z == pos.z) ||
+                                (Abs(z - pos.z) == 2 && Abs(x - pos.x) == 1 && y == pos.y) ||
+                                (Abs(z - pos.z) == 1 && Abs(x - pos.x) == 2 && y == pos.y) ||
+                                (Abs(y - pos.y) == 2 && Abs(z - pos.z) == 1 && x == pos.x) ||
+                                (Abs(y - pos.y) == 1 && Abs(z - pos.z) == 2 && x == pos.x))
+                                if (chessBoard[x, y, z] == null)
+                                    moveables.Add(new int3(x, y, z));
+                                else if (!chessBoard[x, y, z].CompareTag(selectedPiece.tag))
+                                    eatables.Add(new int3(x, y, z)); ;
+                            break;
 
-                            case "Pawn":
-                                // Button-Top arrangement
-                                int yMatch = selectedPiece.isDark2White ? y + 1 : y - 1; // white is at button
-                                if (yMatch == pos.y)
+                        case "Pawn":
+                            // Button-Top arrangement
+                            int yMatch = selectedPiece.isDark2White ? y + 1 : y - 1; // white is at button
+                            if (yMatch == pos.y)
+                            {
+                                if (x == pos.x && z == pos.z)
                                 {
-                                    if (x == pos.x && z == pos.z)
-                                    {
-                                        if (chessBoard[x, y, z] == null)
-                                            moveables.Add(new int3(x, y, z));
-                                    }
-                                    else if ((Abs(x - pos.x) == 1 && z == pos.z || Abs(z - pos.z) == 1 && x == pos.x) &&
-                                            chessBoard[x, y, z] != null &&
-                                            !chessBoard[x, y, z].CompareTag(selectedPiece.tag))
-                                        eatables.Add(new int3(x, y, z));
+                                    if (chessBoard[x, y, z] == null)
+                                        moveables.Add(new int3(x, y, z));
                                 }
-                                break;
-                        }
+                                else if ((Abs(x - pos.x) == 1 && z == pos.z || Abs(z - pos.z) == 1 && x == pos.x) &&
+                                        chessBoard[x, y, z] != null &&
+                                        !chessBoard[x, y, z].CompareTag(selectedPiece.tag))
+                                    eatables.Add(new int3(x, y, z));
+                            }
+                            break;
                     }
                 }
             }
         }
+    }
 
 
 

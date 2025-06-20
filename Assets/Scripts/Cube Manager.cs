@@ -10,7 +10,8 @@ public class CubeManager : MonoBehaviour
     {
         if (Instance != null)
             Destroy(gameObject);
-        Instance = this;
+        else
+            Instance = this;
     }
 
     public GameObject redCubePrefab, greenCubePrefab;
