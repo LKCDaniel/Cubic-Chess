@@ -301,11 +301,11 @@ public class GameManager : MonoBehaviour
                 }
                 else
                 {
+                    if (pointedCube != null)
+                        Move(pointedCube.chessPosition.x, pointedCube.chessPosition.y, pointedCube.chessPosition.z);
                     selectedPiece.SetHighLight(false);
                     selectedPiece = null;
                     CubeManager.Instance.ClearCubes();
-                    if (pointedCube != null)
-                        Move(pointedCube.chessPosition.x, pointedCube.chessPosition.y, pointedCube.chessPosition.z);
                 }
             }
         }
