@@ -2473,6 +2473,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: White Grid
       objectReference: {fileID: 0}
+    - target: {fileID: 6322738743871674330, guid: 59ddee3104aed43fc9ee0d846f2bc556, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []

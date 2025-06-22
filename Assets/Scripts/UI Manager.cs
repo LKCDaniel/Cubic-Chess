@@ -37,7 +37,7 @@ public class UIManager : MonoBehaviour
     }
 
     // 悔棋
-    public void RetractStepOnClick()
+    public void UndoOnClick()
     {
         if (GameManager.Instance.inTransition || GameManager.Instance.CurrentState != GameManager.GameState.Running)
             return;

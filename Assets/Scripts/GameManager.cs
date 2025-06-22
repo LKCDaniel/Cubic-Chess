@@ -299,12 +299,13 @@ public class GameManager : MonoBehaviour
                     selectedPiece.SetHighLight(true);
                     ClickPiece();
                 }
-                else if (pointedCube != null)
+                else
                 {
-                    Move(pointedCube.chessPosition.x, pointedCube.chessPosition.y, pointedCube.chessPosition.z);
                     selectedPiece.SetHighLight(false);
                     selectedPiece = null;
                     CubeManager.Instance.ClearCubes();
+                    if (pointedCube != null)
+                        Move(pointedCube.chessPosition.x, pointedCube.chessPosition.y, pointedCube.chessPosition.z);
                 }
             }
         }
@@ -326,7 +327,7 @@ public class GameManager : MonoBehaviour
             FindDiagonalMoves(pos);
         else
             FindNoneBlockableMoves(type, pos);
-
+        
         CubeManager.Instance.SetCubes(moveables, eatables);
 
     }
@@ -402,7 +403,7 @@ public class GameManager : MonoBehaviour
 
     }
 
-    public void RetractStep()
+    public void UndoStep()
     {
         if (currentStep == 0)
             return;
@@ -411,10 +412,16 @@ public class GameManager : MonoBehaviour
         currentStep--;
         chessBoard = records[currentStep];
 
-        foreach (var piece in chessBoard)
+        for (int x = 0; x < 4; x++)
         {
-            if (piece != null)
-                piece.SetChessPosition(piece.chessPosition);
+            for (int y = 0; y < 4; y++)
+            {
+                for (int z = 0; z < 4; z++)
+                {
+                    if (chessBoard[x, y, z] != null)
+                        chessBoard[x, y, z].SetChessPosition(new int3(x, y, z));
+                }
+            }
         }
 
         float r = radius = storedRadius;
