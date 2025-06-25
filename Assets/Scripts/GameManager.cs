@@ -50,7 +50,7 @@ public class GameManager : MonoBehaviour
     public float separation; // separation between chess pieces
     private MoveableObject[,,] chessBoard; // 4*4*4, X from L to R, Y from B to T, Z from F to B
     private List<MoveableObject[,,]> records = new List<MoveableObject[,,]>();
-    private int currentStep;
+    public int currentStep;
     private MoveableObject pointedPiece, selectedPiece;
     private Cube pointedCube;
     private List<int3> moveables = new List<int3>(); // List of possible moves for the selected piece
@@ -303,8 +303,11 @@ public class GameManager : MonoBehaviour
                 {
                     if (pointedCube != null)
                         Move(pointedCube.chessPosition.x, pointedCube.chessPosition.y, pointedCube.chessPosition.z);
-                    selectedPiece.SetHighLight(false);
-                    selectedPiece = null;
+                    if (selectedPiece != null)
+                    {
+                        selectedPiece.SetHighLight(false);
+                        selectedPiece = null;
+                    }
                     CubeManager.Instance.ClearCubes();
                 }
             }
@@ -327,7 +330,7 @@ public class GameManager : MonoBehaviour
             FindDiagonalMoves(pos);
         else
             FindNoneBlockableMoves(type, pos);
-        
+
         CubeManager.Instance.SetCubes(moveables, eatables);
 
     }
@@ -499,13 +502,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[x, pos.y, pos.z] == null)
                 moveables.Add(new int3(x, pos.y, pos.z));
-            else if (!chessBoard[x, pos.y, pos.z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(x, pos.y, pos.z));
+                if (!chessBoard[x, pos.y, pos.z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(x, pos.y, pos.z));
                 break;
             }
-            else
-                break;
         }
 
         // x- move
@@ -516,13 +518,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[x, pos.y, pos.z] == null)
                 moveables.Add(new int3(x, pos.y, pos.z));
-            else if (!chessBoard[x, pos.y, pos.z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(x, pos.y, pos.z));
+                if (!chessBoard[x, pos.y, pos.z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(x, pos.y, pos.z));
                 break;
             }
-            else
-                break;
         }
 
         // y+ move
@@ -533,13 +534,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[pos.x, y, pos.z] == null)
                 moveables.Add(new int3(pos.x, y, pos.z));
-            else if (!chessBoard[pos.x, y, pos.z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(pos.x, y, pos.z));
+                if (!chessBoard[pos.x, y, pos.z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(pos.x, y, pos.z));
                 break;
             }
-            else
-                break;
         }
 
         // y- move
@@ -550,13 +550,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[pos.x, y, pos.z] == null)
                 moveables.Add(new int3(pos.x, y, pos.z));
-            else if (!chessBoard[pos.x, y, pos.z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(pos.x, y, pos.z));
+                if (!chessBoard[pos.x, y, pos.z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(pos.x, y, pos.z));
                 break;
             }
-            else
-                break;
         }
 
         // z+ move
@@ -567,13 +566,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[pos.x, pos.y, z] == null)
                 moveables.Add(new int3(pos.x, pos.y, z));
-            else if (!chessBoard[pos.x, pos.y, z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(pos.x, pos.y, z));
+                if (!chessBoard[pos.x, pos.y, z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(pos.x, pos.y, z));
                 break;
             }
-            else
-                break;
         }
 
         // z- move
@@ -584,13 +582,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[pos.x, pos.y, z] == null)
                 moveables.Add(new int3(pos.x, pos.y, z));
-            else if (!chessBoard[pos.x, pos.y, z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(pos.x, pos.y, z));
+                if (!chessBoard[pos.x, pos.y, z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(pos.x, pos.y, z));
                 break;
             }
-            else
-                break;
         }
     }
 
@@ -605,13 +602,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[x, y, pos.z] == null)
                 moveables.Add(new int3(x, y, pos.z));
-            else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(x, y, pos.z));
+                if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(x, y, pos.z));
                 break;
             }
-            else
-                break;
         }
 
         // x+y- move
@@ -623,13 +619,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[x, y, pos.z] == null)
                 moveables.Add(new int3(x, y, pos.z));
-            else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(x, y, pos.z));
+                if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(x, y, pos.z));
                 break;
             }
-            else
-                break;
         }
 
         // x-y+ move
@@ -641,13 +636,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[x, y, pos.z] == null)
                 moveables.Add(new int3(x, y, pos.z));
-            else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(x, y, pos.z));
+                if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(x, y, pos.z));
                 break;
             }
-            else
-                break;
         }
 
         // x-y- move
@@ -659,13 +653,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[x, y, pos.z] == null)
                 moveables.Add(new int3(x, y, pos.z));
-            else if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(x, y, pos.z));
+                if (!chessBoard[x, y, pos.z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(x, y, pos.z));
                 break;
             }
-            else
-                break;
         }
 
         // x+z+ move
@@ -677,13 +670,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[x, pos.y, z] == null)
                 moveables.Add(new int3(x, pos.y, z));
-            else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(x, pos.y, z));
+                if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(x, pos.y, z));
                 break;
             }
-            else
-                break;
         }
 
         // x+z- move
@@ -695,13 +687,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[x, pos.y, z] == null)
                 moveables.Add(new int3(x, pos.y, z));
-            else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(x, pos.y, z));
+                if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(x, pos.y, z));
                 break;
             }
-            else
-                break;
         }
 
         // x-z+ move
@@ -713,13 +704,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[x, pos.y, z] == null)
                 moveables.Add(new int3(x, pos.y, z));
-            else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(x, pos.y, z));
+                if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(x, pos.y, z));
                 break;
             }
-            else
-                break;
         }
 
         // x-z- move
@@ -731,13 +721,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[x, pos.y, z] == null)
                 moveables.Add(new int3(x, pos.y, z));
-            else if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(x, pos.y, z));
+                if (!chessBoard[x, pos.y, z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(x, pos.y, z));
                 break;
             }
-            else
-                break;
         }
 
         // y+z+ move
@@ -749,13 +738,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[pos.x, y, z] == null)
                 moveables.Add(new int3(pos.x, y, z));
-            else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(pos.x, y, z));
+                if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(pos.x, y, z));
                 break;
             }
-            else
-                break;
         }
 
         // y+z- move
@@ -767,13 +755,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[pos.x, y, z] == null)
                 moveables.Add(new int3(pos.x, y, z));
-            else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
+            else
             {
-                eatables.Add(new int3(pos.x, y, z));
+                if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
+                    eatables.Add(new int3(pos.x, y, z));
                 break;
             }
-            else
-                break;
         }
 
         // y-z+ move
@@ -785,13 +772,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[pos.x, y, z] == null)
                 moveables.Add(new int3(pos.x, y, z));
-            else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
+            else
             {
+                if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
                 eatables.Add(new int3(pos.x, y, z));
                 break;
             }
-            else
-                break;
         }
 
         // y-z- move
@@ -803,13 +789,12 @@ public class GameManager : MonoBehaviour
 
             if (chessBoard[pos.x, y, z] == null)
                 moveables.Add(new int3(pos.x, y, z));
-            else if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
+            else
             {
+                if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
                 eatables.Add(new int3(pos.x, y, z));
                 break;
             }
-            else
-                break;
         }
     }
 
