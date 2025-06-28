@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Unity.Mathematics;
 using static UnityEngine.Mathf;
 using System.Collections;
+using NUnit.Framework;
 
 public class GameManager : MonoBehaviour
 {
@@ -53,10 +54,9 @@ public class GameManager : MonoBehaviour
     public int currentStep;
     private MoveableObject pointedPiece, selectedPiece;
     private Cube pointedCube;
-    private List<int3> moveables = new List<int3>(); // List of possible moves for the selected piece
-    private List<int3> eatables = new List<int3>(); // List of possible eats for the selected piece
     [HideInInspector]
     public bool isWhiteTurn = true;
+    private bool isKingEndangered; // Is the king threatened by any opponent piece
     private int whiteEats, darkEats;
     [HideInInspector]
     public bool inTransition; // Is a piece currently moving
@@ -112,6 +112,7 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
+        // initialize the chessboard
         chessBoard = new MoveableObject[4, 4, 4]{ // x, y, z
         {
             { RookW1, PawnW1, KnightW1, PawnW2}, // x0, y0, z0-z3
@@ -172,7 +173,7 @@ public class GameManager : MonoBehaviour
                 Debug.Log("Game is starting");
                 inTransition = true;
                 UIManager.Instance.FadeShade();
-                MoveCamera(initRadius, initTheta, initPhi, entryTime, () =>
+                ShiftCamera(initRadius, initTheta, initPhi, entryTime, () =>
                 {
                     inTransition = false;
                     radius = storedRadius = initRadius;
@@ -230,13 +231,13 @@ public class GameManager : MonoBehaviour
         if (Keyboard.current.downArrowKey.isPressed || Keyboard.current.sKey.isPressed)
             phi += keyPhiSpeed * Time.deltaTime;
 
-        UpdateCamera();
+        MoveCamera();
 
     }
 
     private void PointerControl()
     {
-        // Highlighting pieces or cube
+        // find the pointing cube/piece, set highlights
         if (pointedPiece != null)
         {
             pointedPiece.SetHighLight(false);
@@ -252,15 +253,16 @@ public class GameManager : MonoBehaviour
 
         if (!inTransition)
         {
-            Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
+            Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue()); // use a ray at the pointer's position
             if (Physics.Raycast(ray, out RaycastHit hit)) // Pointing to piece or cube
             {
-                if (hit.collider.CompareTag("Green") || hit.collider.CompareTag("Red"))
+                if (hit.collider.CompareTag("Green") || hit.collider.CompareTag("Red")) // if pointing to a cube
                 {
                     pointedCube = hit.collider.GetComponent<Cube>();
                     pointedCube.SetEnlargeCube(true);
                 }
-                else if (hit.collider.CompareTag("White") && isWhiteTurn || hit.collider.CompareTag("Dark") && !isWhiteTurn)
+                else if (!isKingEndangered && // restrict selection if the king is endangered
+                    (hit.collider.CompareTag("White") && isWhiteTurn || hit.collider.CompareTag("Dark") && !isWhiteTurn))
                 {
                     pointedPiece = hit.collider.GetComponent<MoveableObject>();
                     pointedPiece.SetHighLight(true);
@@ -268,47 +270,55 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // Camera dragging selection
-        if (isDraggingCamera)
+        // Camera dragging or selecting piece
+        if (isDraggingCamera) // is dragging the camera
         {
             Vector2 currentMousePosition = Mouse.current.position.ReadValue();
             Vector2 delta = currentMousePosition - lastMousePosition;
             theta -= delta.x * mouseSensitivity;
             phi += delta.y * mouseSensitivity;
-            UpdateCamera();
+            MoveCamera();
             lastMousePosition = currentMousePosition;
         }
-        else if (Mouse.current.leftButton.wasPressedThisFrame)
+        else if (Mouse.current.leftButton.wasPressedThisFrame) // just pressed the left button
         {
             isDraggingCamera = true;
             lastMousePosition = initialMousePosition = Mouse.current.position.ReadValue();
         }
 
-        if (Mouse.current.leftButton.wasReleasedThisFrame)
+        if (Mouse.current.leftButton.wasReleasedThisFrame) // just released the left button
         {
             isDraggingCamera = false;
             float mouseDragDistance = Vector2.Distance(initialMousePosition, Mouse.current.position.ReadValue());
-            if (mouseDragDistance <= clickTolerance) // click event
+            if (mouseDragDistance <= clickTolerance) // this is a click event
             {
-                if (selectedPiece != null)
+                if (selectedPiece != null && !isKingEndangered)
                     selectedPiece.SetHighLight(false);
 
-                if (pointedPiece != null)
+                if (pointedPiece != null) // if a piece is clicked, and if the color is right, select the new piece
                 {
-                    selectedPiece = pointedPiece;
-                    selectedPiece.SetHighLight(true);
-                    ClickPiece();
-                }
-                else
-                {
-                    if (pointedCube != null)
-                        Move(pointedCube.chessPosition.x, pointedCube.chessPosition.y, pointedCube.chessPosition.z);
-                    if (selectedPiece != null)
+                    if (pointedPiece.CompareTag("White") && isWhiteTurn || pointedPiece.CompareTag("Dark") && !isWhiteTurn)
                     {
-                        selectedPiece.SetHighLight(false);
-                        selectedPiece = null;
+                        if (selectedPiece != null)
+                            selectedPiece.SetHighLight(false);
+                        selectedPiece = pointedPiece;
+                        selectedPiece.SetHighLight(true);
+                        ShowPotentialMoves();
                     }
-                    CubeManager.Instance.ClearCubes();
+                }
+                else // click at a cube or nothing
+                {
+                    if (pointedCube != null) // if a cube is clicked
+                        Move(pointedCube.chessPosition.x, pointedCube.chessPosition.y, pointedCube.chessPosition.z);
+                    if (!isKingEndangered)
+                    {
+                        if (selectedPiece != null)
+                        {
+                            selectedPiece.SetHighLight(false);
+                            selectedPiece = null;
+                        }
+                        CubeManager.Instance.ClearMoveableCubes();
+                    }
                 }
             }
         }
@@ -317,19 +327,19 @@ public class GameManager : MonoBehaviour
 
     // ------------------------------------ Executions -------------------------------------------------------------------
 
-    private void ClickPiece()
+    private void ShowPotentialMoves()
     {
-        moveables.Clear();
-        eatables.Clear();
+        List<int3> moveables = new List<int3>();
+        List<int3> eatables = new List<int3>();
         string type = selectedPiece.name.Split(' ')[0];
         int3 pos = selectedPiece.chessPosition;
 
         if (type == "Rook" || type == "Queen")
-            FindVerticalMoves(pos);
+            FindVerticalMoves(pos, moveables, eatables);
         if (type == "Bishop" || type == "Queen")
-            FindDiagonalMoves(pos);
+            FindDiagonalMoves(pos, moveables, eatables);
         else
-            FindNoneBlockableMoves(type, pos);
+            FindNonBlockableMoves(type, pos, moveables, eatables);
 
         CubeManager.Instance.SetCubes(moveables, eatables);
 
@@ -345,7 +355,7 @@ public class GameManager : MonoBehaviour
             records.Add(record);
         currentStep++;
 
-        // move behaviors
+        // move the eaten piece to side
         inTransition = true;
         MoveableObject targetPiece = chessBoard[x, y, z];
         if (targetPiece != null)
@@ -355,23 +365,17 @@ public class GameManager : MonoBehaviour
 
             if (isWhiteTurn)
             {
-                if (whiteEats < 8)
-                    sidePosition.x = 3 * separation;
-                else
-                    sidePosition.x = 3.5f * separation;
+                sidePosition.x = (darkEats < 8) ? (4 * separation) : (4.5f * separation);
                 sidePosition.z = (-3.5f + whiteEats % 8) * separation / 2;
                 whiteEats++;
             }
             else
             {
-                if (darkEats < 8)
-                    sidePosition.x = -3 * separation;
-                else
-                    sidePosition.x = -3.5f * separation;
-                sidePosition.z = (3.5f - whiteEats % 8) * separation / 2;
+                sidePosition.x = (darkEats < 8) ? (-4 * separation) : (-4.5f * separation);
+                sidePosition.z = (3.5f - darkEats % 8) * separation / 2;
                 darkEats++;
             }
-            targetPiece.PieceEaten(sidePosition); // Move the eaten piece to side
+            targetPiece.PieceEaten(sidePosition);
         }
 
         // Pawn promotion / reverse in direction
@@ -382,25 +386,38 @@ public class GameManager : MonoBehaviour
             selectedPiece.UpsideDown();
         }
 
+        // Winning
         if (targetPiece == KingW || targetPiece == KingD) // Dark win
             ChangeState(GameState.End);
 
+        // Move the selected piece
         chessBoard[selectedPiece.chessPosition.x, selectedPiece.chessPosition.y, selectedPiece.chessPosition.z] = null;
         selectedPiece.MoveTo(new int3(x, y, z), SwitchTurn);
         chessBoard[x, y, z] = selectedPiece;
 
+        // switch player's turn
         void SwitchTurn()
         {
+            CubeManager.Instance.ClearWarningCube();
             GridManager.Instance.Revolve();
             foreach (var piece in chessBoard)
             {
                 if (piece != null)
                     piece.RevolveAlongAxisZ();
             }
-            MoveCamera(storedRadius, storedTheta, storedPhi, cameraMoveTime, () =>
+            ShiftCamera(storedRadius, storedTheta, storedPhi, cameraMoveTime, () =>
             {
                 inTransition = false;
                 isWhiteTurn = !isWhiteTurn;
+                isKingEndangered = false;
+                // if king is threatened
+                if (isWhiteTurn && IsPositionEndangered(KingW.chessPosition) || !isWhiteTurn && IsPositionEndangered(KingD.chessPosition))
+                {
+                    isKingEndangered = true;
+                    selectedPiece = isWhiteTurn ? KingW : KingD;
+                    CubeManager.Instance.SetWarningCube(selectedPiece.chessPosition);
+                    ShowPotentialMoves();
+                }
             });
         }
 
@@ -430,7 +447,7 @@ public class GameManager : MonoBehaviour
         float r = radius = storedRadius;
         float t = theta = storedTheta;
         float p = phi = storedPhi;
-        UpdateCamera();
+        MoveCamera();
         storedRadius = r;
         storedTheta = t;
         storedPhi = p;
@@ -439,7 +456,7 @@ public class GameManager : MonoBehaviour
 
     // ------------------------------------ Camera Movements -------------------------------------------------------------------
 
-    private void MoveCamera(float targetRadius, float targetTheta, float targetPhi, float duration, System.Action onComplete = null)
+    private void ShiftCamera(float targetRadius, float targetTheta, float targetPhi, float duration, System.Action onComplete = null)
     {
         StartCoroutine(MoveCameraCoroutine(targetRadius, targetTheta, targetPhi, duration, onComplete));
         storedRadius = radius;
@@ -465,20 +482,20 @@ public class GameManager : MonoBehaviour
                 radius = Lerp(beginRadius, targetRadius, time);
                 theta = Lerp(0, deltaTheta, time) + beginTheta;
                 phi = Lerp(beginPhi, targetPhi, time);
-                UpdateCamera();
+                MoveCamera();
                 elapsedTime += Time.deltaTime;
                 yield return null;
             }
             radius = targetRadius;
             theta = targetTheta;
             phi = targetPhi;
-            UpdateCamera();
+            MoveCamera();
             onComplete?.Invoke();
         }
 
     }
 
-    private void UpdateCamera()
+    private void MoveCamera()
     {
         radius = Clamp(radius, minRadius, maxRadius);
         theta %= 360;
@@ -492,7 +509,7 @@ public class GameManager : MonoBehaviour
 
     // ------------------------------------ Find Possible Moves ------------------------------------------------------------------------
 
-    void FindVerticalMoves(int3 pos)
+    private void FindVerticalMoves(int3 pos, List<int3> moveables, List<int3> eatables)
     {
         // x+ move
         for (int i = 1; i < 4; i++)
@@ -591,7 +608,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    void FindDiagonalMoves(int3 pos)
+    private void FindDiagonalMoves(int3 pos, List<int3> moveables, List<int3> eatables)
     {
         // x+y+ move
         for (int i = 1; i < 4; i++)
@@ -775,7 +792,7 @@ public class GameManager : MonoBehaviour
             else
             {
                 if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
-                eatables.Add(new int3(pos.x, y, z));
+                    eatables.Add(new int3(pos.x, y, z));
                 break;
             }
         }
@@ -792,13 +809,13 @@ public class GameManager : MonoBehaviour
             else
             {
                 if (!chessBoard[pos.x, y, z].CompareTag(selectedPiece.tag))
-                eatables.Add(new int3(pos.x, y, z));
+                    eatables.Add(new int3(pos.x, y, z));
                 break;
             }
         }
     }
 
-    void FindNoneBlockableMoves(string type, int3 pos)
+    private void FindNonBlockableMoves(string type, int3 pos, List<int3> moveables, List<int3> eatables, bool ignoreThreat = false)
     {
         for (int x = 0; x < 4; x++)
         {
@@ -810,10 +827,14 @@ public class GameManager : MonoBehaviour
                     {
                         case "King":
                             if (Abs(x - pos.x) <= 1 && Abs(y - pos.y) <= 1 && Abs(z - pos.z) <= 1)
+                            {
+                                if (!ignoreThreat && IsPositionEndangered(new int3(x, y, z))) // king cannot move to a threatened position
+                                    continue;
                                 if (chessBoard[x, y, z] == null)
                                     moveables.Add(new int3(x, y, z));
                                 else if (!chessBoard[x, y, z].CompareTag(selectedPiece.tag))
-                                    eatables.Add(new int3(x, y, z)); ;
+                                    eatables.Add(new int3(x, y, z));
+                            }
                             break;
 
                         case "Knight":
@@ -823,10 +844,12 @@ public class GameManager : MonoBehaviour
                                 (Abs(z - pos.z) == 1 && Abs(x - pos.x) == 2 && y == pos.y) ||
                                 (Abs(y - pos.y) == 2 && Abs(z - pos.z) == 1 && x == pos.x) ||
                                 (Abs(y - pos.y) == 1 && Abs(z - pos.z) == 2 && x == pos.x))
+                            {
                                 if (chessBoard[x, y, z] == null)
                                     moveables.Add(new int3(x, y, z));
                                 else if (!chessBoard[x, y, z].CompareTag(selectedPiece.tag))
-                                    eatables.Add(new int3(x, y, z)); ;
+                                    eatables.Add(new int3(x, y, z));
+                            }
                             break;
 
                         case "Pawn":
@@ -848,6 +871,43 @@ public class GameManager : MonoBehaviour
                 }
             }
         }
+    }
+
+    private bool IsPositionEndangered(int3 pos) // if the position is threatened by any opponent piece
+    {
+        MoveableObject[,,] tempBoard = (MoveableObject[,,])chessBoard.Clone();
+        MoveableObject tempSelected = selectedPiece; // temporarily store the selected piece
+        chessBoard[pos.x, pos.y, pos.z] = isWhiteTurn ? KingW : KingD; // temporarily move and select the king
+        isWhiteTurn = !isWhiteTurn; // switch turn to find opponent's potential eats
+
+        List<int3> totalOppoMoveables = new List<int3>();
+        List<int3> totalOppoEatables = new List<int3>();
+        bool result = false;
+        foreach (var piece in chessBoard)
+        {
+            if (piece == null || piece.CompareTag("White") && !isWhiteTurn || piece.CompareTag("Dark") && isWhiteTurn)
+                continue;
+            selectedPiece = piece;
+            string type = piece.name.Split(' ')[0];
+            if (type == "Rook" || type == "Queen")
+                FindVerticalMoves(piece.chessPosition, totalOppoMoveables, totalOppoEatables);
+            if (type == "Bishop" || type == "Queen")
+                FindDiagonalMoves(piece.chessPosition, totalOppoMoveables, totalOppoEatables);
+            else
+                FindNonBlockableMoves(type, piece.chessPosition, totalOppoMoveables, totalOppoEatables, true);
+
+            if (totalOppoEatables.Contains(pos))
+            {
+                result = true; // if the position is threatened by any opponent piece
+                break;
+            }
+        }
+
+        isWhiteTurn = !isWhiteTurn; // switch back to the original turn
+        chessBoard = tempBoard; // restore the chess board
+        selectedPiece = tempSelected; // restore the selected piece
+        return result;
+
     }
 
 

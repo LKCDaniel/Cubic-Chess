@@ -115,10 +115,7 @@ public class MoveableObject : MonoBehaviour
 
     public void UpsideDown()
     {
-        if (upsideDown)
-            StartCoroutine(UpsideDownCoroutine(-90, GameManager.Instance.pieceMoveTime));
-        else
-            StartCoroutine(UpsideDownCoroutine(90, GameManager.Instance.pieceMoveTime));
+        StartCoroutine(UpsideDownCoroutine(upsideDown? -90 : 90, GameManager.Instance.pieceMoveTime));
         upsideDown = !upsideDown;
 
         IEnumerator UpsideDownCoroutine(float targetAngle, float duration)
