@@ -18,7 +18,7 @@ public class CubeManager : MonoBehaviour
     private List<GameObject> cubes = new List<GameObject>();
     private GameObject warningCube;
 
-    public void SetCubes(List<int3> greenCubes, List<int3> redCubes)
+    public void SetCubes(HashSet<int3> greenCubes, HashSet<int3> redCubes)
     {
         ClearMoveableCubes();
         foreach (var pos in redCubes)
