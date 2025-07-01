@@ -9,8 +9,8 @@ public class MoveableObject : MonoBehaviour
     public Vector3 initRotation;
     private Material material;
     [HideInInspector]
-    public bool isDark2White; // if a chess piece is moving from Dark to White
-    private bool upsideDown; // if nowupside down
+    public bool isPawnDark2White; // if a chess piece is moving from Dark to White
+    // private bool upsideDown; // if nowupside down
     [HideInInspector]
     public int3 chessPosition; // X, Y, Z coordinates in the chess board
 
@@ -113,27 +113,27 @@ public class MoveableObject : MonoBehaviour
         }
     }
 
-    public void UpsideDown()
-    {
-        StartCoroutine(UpsideDownCoroutine(upsideDown? -90 : 90, GameManager.Instance.pieceMoveTime));
-        upsideDown = !upsideDown;
+    // public void UpsideDown()
+    // {
+    //     StartCoroutine(UpsideDownCoroutine(upsideDown? -90 : 90, GameManager.Instance.pieceMoveTime));
+    //     upsideDown = !upsideDown;
 
-        IEnumerator UpsideDownCoroutine(float targetAngle, float duration)
-        {
-            Quaternion startRotation = Quaternion.Euler(-targetAngle, 0, 0);
-            Quaternion targetRotation = Quaternion.Euler(targetAngle, 0, 0);
-            float elapsedTime = 0;
+    //     IEnumerator UpsideDownCoroutine(float targetAngle, float duration)
+    //     {
+    //         Quaternion startRotation = Quaternion.Euler(-targetAngle, 0, 0);
+    //         Quaternion targetRotation = Quaternion.Euler(targetAngle, 0, 0);
+    //         float elapsedTime = 0;
 
-            while (elapsedTime < duration)
-            {
-                float t = SmoothStep(0, 1, elapsedTime / duration);
-                transform.rotation = Quaternion.Lerp(startRotation, targetRotation, t);
-                elapsedTime += Time.deltaTime;
-                yield return null;
-            }
-            transform.rotation = targetRotation;
-        }
-    }
+    //         while (elapsedTime < duration)
+    //         {
+    //             float t = SmoothStep(0, 1, elapsedTime / duration);
+    //             transform.rotation = Quaternion.Lerp(startRotation, targetRotation, t);
+    //             elapsedTime += Time.deltaTime;
+    //             yield return null;
+    //         }
+    //         transform.rotation = targetRotation;
+    //     }
+    // }
 
     public void RevolveAlongAxisZ() // Revolve around the Z-axis
     {

@@ -14,23 +14,20 @@ public class UIManager : MonoBehaviour
     }
 
     private GameManager.GameState previousState;
-
-    [Header("UI Elements")]
-    public GameObject pauseButton, undoButton;
-    public GameObject shade;
-
+    public GameObject pauseButton, undoButton, shade, PawnPromotionPanel;
+    private string pawnPromotionType;
 
     void Start()
     {
-
+        PawnPromotionPanel.SetActive(false);
     }
 
     void Update()
     {
-        if (!GameManager.Instance.inTransition && GameManager.Instance.CurrentState == GameManager.GameState.Running)
+        if (!GameManager.Instance.inTransition)
         {
-            pauseButton.SetActive(true);
-            undoButton.SetActive(GameManager.Instance.currentStep > 0);
+            pauseButton.SetActive(GameManager.Instance.CurrentState == GameManager.GameState.Running || GameManager.Instance.CurrentState == GameManager.GameState.Paused);
+            undoButton.SetActive(GameManager.Instance.CurrentState == GameManager.GameState.Running && GameManager.Instance.currentStep > 0);
         }
         else
         {
@@ -38,6 +35,8 @@ public class UIManager : MonoBehaviour
             undoButton.SetActive(false);
         }
     }
+
+    public void UndoOnClick() => GameManager.Instance.UndoStep();
 
     public void PauseOnClick()
     {
@@ -56,15 +55,13 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    public void UndoOnClick()
-    {
-        GameManager.Instance.UndoStep();
-    }
-
     public void GameFinish(bool isWhiteWin)
     {
+        SetShade(0.5f);
 
     }
+
+    public void SetShade(float alpha) => shade.GetComponent<Image>().color = new Color(0, 0, 0, alpha);
 
     public void FadeShade()
     {
@@ -86,9 +83,19 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    private void SetShade(float alpha)
+    public IEnumerator SetPromotionTypeCoroutine(System.Action<string> onComplete)
     {
-        shade.GetComponent<Image>().color = new Color(0, 0, 0, alpha);
+        pawnPromotionType = null;
+        PawnPromotionPanel.SetActive(true);
+        yield return new WaitUntil(() => pawnPromotionType != null);
+        PawnPromotionPanel.SetActive(false);
+        onComplete?.Invoke(pawnPromotionType);
+    }
+
+    public void SetPromotionTypeOnClick(string type)
+    {
+        pawnPromotionType = type;
+        Debug.Log($"Pawn promotion to {type} {(GameManager.Instance.isWhiteTurn ? "White" : "Dark")}.");
     }
 
 

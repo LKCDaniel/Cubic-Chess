@@ -5,7 +5,6 @@ using Unity.Mathematics;
 public class CubeManager : MonoBehaviour
 {
     public static CubeManager Instance;
-
     private void Awake()
     {
         if (Instance != null)
@@ -28,10 +27,7 @@ public class CubeManager : MonoBehaviour
             CreateCube(pos.x, pos.y, pos.z, false);
     }
 
-    public void SetWarningCube(int3 pos)
-    {
-        CreateCube(pos.x, pos.y, pos.z, false, true);
-    }
+    public void SetWarningCube(int3 pos) => CreateCube(pos.x, pos.y, pos.z, false, true);
 
     public void ClearMoveableCubes()
     {
