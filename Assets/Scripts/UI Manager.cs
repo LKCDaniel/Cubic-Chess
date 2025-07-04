@@ -14,7 +14,7 @@ public class UIManager : MonoBehaviour
     }
 
     private GameManager.GameState previousState;
-    public GameObject pauseButton, undoButton, shade, PawnPromotionPanel;
+    public GameObject pauseButton, undoButton, revolveButton, shade, PawnPromotionPanel;
     private string pawnPromotionType;
 
     void Start()
@@ -28,11 +28,13 @@ public class UIManager : MonoBehaviour
         {
             pauseButton.SetActive(GameManager.Instance.CurrentState == GameManager.GameState.Running || GameManager.Instance.CurrentState == GameManager.GameState.Paused);
             undoButton.SetActive(GameManager.Instance.CurrentState == GameManager.GameState.Running && GameManager.Instance.currentStep > 0);
+            revolveButton.SetActive(GameManager.Instance.CurrentState == GameManager.GameState.Running);
         }
         else
         {
             pauseButton.SetActive(false);
             undoButton.SetActive(false);
+            revolveButton.SetActive(false);
         }
     }
 
@@ -54,6 +56,8 @@ public class UIManager : MonoBehaviour
             shade.GetComponent<Image>().color = new Color(0, 0, 0, 0.5f);
         }
     }
+
+    public void RevolveOnClick() { GameManager.Instance.RevolveBoard(true); }
 
     public void GameFinish(bool isWhiteWin)
     {
@@ -95,7 +99,7 @@ public class UIManager : MonoBehaviour
     public void SetPromotionTypeOnClick(string type)
     {
         pawnPromotionType = type;
-        Debug.Log($"Pawn promotion to {type} {(GameManager.Instance.isWhiteTurn ? "White" : "Dark")}.");
+        Debug.Log($"Pawn promotion to {type}");
     }
 
 

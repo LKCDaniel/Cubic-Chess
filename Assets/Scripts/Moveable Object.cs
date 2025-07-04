@@ -40,7 +40,7 @@ public class MoveableObject : MonoBehaviour
     {
         float sep = GameManager.Instance.separation;
         Vector3 position = new Vector3(p.x * sep - 1.5f * sep, p.y * sep - 1.5f * sep, p.z * sep - 1.5f * sep);
-        if (!GameManager.Instance.isWhiteTurn)
+        if (GameManager.Instance.isWhiteOnTop)
             position = new Vector3(-position.x, -position.y, position.z);
         position.y += yOffset; // Adjust the height based on yOffset
         return position;
@@ -135,11 +135,11 @@ public class MoveableObject : MonoBehaviour
     //     }
     // }
 
-    public void RevolveAlongAxisZ() // Revolve around the Z-axis
+    public void RevolveAlongAxisZ(System.Action onComplete = null) // Revolve around the Z-axis
     {
-        StartCoroutine(RotateCoroutine(GameManager.Instance.cameraMoveTime));
+        StartCoroutine(RotateCoroutine(GameManager.Instance.cameraMoveTime, onComplete));
 
-        IEnumerator RotateCoroutine(float duration)
+        IEnumerator RotateCoroutine(float duration, System.Action onComplete)
         {
             float elapsedTime = 0;
             float x = transform.position.x;
@@ -155,6 +155,7 @@ public class MoveableObject : MonoBehaviour
                 yield return null;
             }
             transform.position = new Vector3(-x, -y + yOffset, transform.position.z);
+            onComplete?.Invoke();
         }
     }
 

@@ -24,8 +24,8 @@ public class GameManager : MonoBehaviour
     public enum GameState { Entry, Paused, Running, End }
     public GameState CurrentState { get; private set; }
 
-    // Animation times
-    [Header("Animation Times")]
+    // Animation durations
+    [Header("Animation Durations")]
     public float pieceMoveTime;
     public float entryTime, cameraMoveTime;
 
@@ -52,11 +52,12 @@ public class GameManager : MonoBehaviour
     private MoveableObject[,,] chessBoard; // 4*4*4, X from L to R, Y from B to T, Z from F to B
     private MoveableObject pointedPiece, selectedPiece;
     private Cube pointedCube;
-    public bool isWhiteTurn { get; private set; }
+    private bool isWhiteTurn, isRevolvedWhite, isRevolvedDark; // Normally, the player starts from the bottom
+    public bool isWhiteOnTop => isWhiteTurn && isRevolvedWhite || !isWhiteTurn && !isRevolvedDark;
     private int whiteEats, darkEats;
     public bool inTransition { get; private set; } // Is a piece currently moving
 
-    // keep track of every move
+    // keep a record of every move
     private class MoveRecord
     {
         public int3 fromPosition, toPosition;
@@ -465,19 +466,16 @@ public class GameManager : MonoBehaviour
             }
 
             // transition
-            GridManager.Instance.Revolve();
-            foreach (var piece in chessBoard)
-            {
-                if (piece != null)
-                    piece.RevolveAlongAxisZ();
-            }
-            ShiftCamera(storedRadius, storedTheta, storedPhi, cameraMoveTime, () =>
+            if (isRevolvedWhite == isRevolvedDark)
+                RevolveBoard();
+            else
             {
                 inTransition = false;
                 // if king is threatened
                 if (isWhiteTurn && !IsKingSafeAtPosition(KingW.chessPosition) || !isWhiteTurn && !IsKingSafeAtPosition(KingD.chessPosition))
                     CubeManager.Instance.SetWarningCube(isWhiteTurn ? KingW.chessPosition : KingD.chessPosition);
-            });
+            }
+            ShiftCamera(storedRadius, storedTheta, storedPhi, cameraMoveTime);
         }
 
     }
@@ -525,6 +523,47 @@ public class GameManager : MonoBehaviour
 
     }
 
+    public void RevolveBoard(bool fromUser = false)
+    {
+        if (fromUser)
+        {
+            if (isWhiteTurn)
+                isRevolvedWhite = !isRevolvedWhite;
+            else
+                isRevolvedDark = !isRevolvedDark;
+        }
+        inTransition = true;
+        CubeManager.Instance.ClearMoveableCubes();
+        CubeManager.Instance.ClearWarningCube();
+        GridManager.Instance.Revolve();
+
+        int numPiece = 0;
+        int numFinish = 0;
+        foreach (var piece in chessBoard)
+        {
+            if (piece != null)
+            {
+                numPiece++;
+                piece.RevolveAlongAxisZ(() =>
+                {
+                    numFinish++;
+                    if (numFinish == numPiece)
+                    {
+                        inTransition = false;
+                        // if king is threatened
+                        if (isWhiteTurn && !IsKingSafeAtPosition(KingW.chessPosition) || !isWhiteTurn && !IsKingSafeAtPosition(KingD.chessPosition))
+                            CubeManager.Instance.SetWarningCube(isWhiteTurn ? KingW.chessPosition : KingD.chessPosition);
+                        if (selectedPiece != null)
+                            GetPotentialMoves(selectedPiece);
+                    }
+                });
+            }
+        }
+
+
+
+    }
+
     // ------------------------------------ Camera Movements -------------------------------------------------------------------
 
     private void ShiftCamera(float targetRadius, float targetTheta, float targetPhi, float duration, Action onComplete = null)
@@ -541,7 +580,6 @@ public class GameManager : MonoBehaviour
             float beginRadius = radius;
             float beginTheta = theta;
             float beginPhi = phi;
-
             float deltaTheta = targetTheta - theta;
             if (deltaTheta > 180) deltaTheta -= 360;
             else if (deltaTheta < -180) deltaTheta += 360;
@@ -549,7 +587,6 @@ public class GameManager : MonoBehaviour
             while (elapsedTime < duration)
             {
                 float time = SmoothStep(0, 1, elapsedTime / duration);
-
                 radius = Lerp(beginRadius, targetRadius, time);
                 theta = Lerp(0, deltaTheta, time) + beginTheta;
                 phi = Lerp(beginPhi, targetPhi, time);
@@ -576,9 +613,49 @@ public class GameManager : MonoBehaviour
         float z = radius * Sin(phi * Deg2Rad) * Sin(theta * Deg2Rad);
         Camera.main.transform.position = new Vector3(x, y + cameraYOffset, z);
         Camera.main.transform.LookAt(new Vector3(0, cameraYOffset, 0));
+
     }
 
     // ------------------------------------ Find Possible Moves ------------------------------------------------------------------------
+
+    private bool IsKingSafeAtPosition(int3 pos)
+    {
+        MoveableObject[,,] board = (MoveableObject[,,])chessBoard.Clone();
+        MoveableObject currentKing = isWhiteTurn ? KingW : KingD;
+        int3 storedPosition = currentKing.chessPosition; // store the original position
+        board[currentKing.chessPosition.x, currentKing.chessPosition.y, currentKing.chessPosition.z] = null;
+        board[pos.x, pos.y, pos.z] = currentKing;
+        currentKing.chessPosition = pos; // set the piece to the new position
+        bool isSafe = IsKingSafe(board);
+        currentKing.chessPosition = storedPosition;
+        return isSafe;
+
+    }
+
+    private bool IsKingSafe(MoveableObject[,,] board) // if the position is threatened by any opponent piece
+    {
+        foreach (var piece in board)
+        {
+            if (piece == null || piece.CompareTag("White") && isWhiteTurn || piece.CompareTag("Dark") && !isWhiteTurn)
+                continue;
+
+            HashSet<int3> pieceMoveables = new HashSet<int3>();
+            HashSet<int3> pieceEatables = new HashSet<int3>();
+            string type = piece.name.Split(' ')[0];
+            if (type == "Rook" || type == "Queen")
+                FindVerticalMoves(board, piece, pieceMoveables, pieceEatables);
+            if (type == "Bishop" || type == "Queen")
+                FindDiagonalMoves(board, piece, pieceMoveables, pieceEatables);
+            else
+                FindNonBlockableMoves(board, piece, pieceMoveables, pieceEatables, true);
+
+            int3 kingPosition = isWhiteTurn ? KingW.chessPosition : KingD.chessPosition;
+            if (pieceEatables.Contains(kingPosition))
+                return false; // if the position is threatened by any opponent piece
+        }
+        return true;
+
+    }
 
     private void FindVerticalMoves(MoveableObject[,,] board, MoveableObject fromPiece, HashSet<int3> moveables, HashSet<int3> eatables)
     {
@@ -947,45 +1024,6 @@ public class GameManager : MonoBehaviour
                 }
             }
         }
-
-    }
-
-    private bool IsKingSafeAtPosition(int3 pos)
-    {
-        MoveableObject[,,] board = (MoveableObject[,,])chessBoard.Clone();
-        MoveableObject currentKing = isWhiteTurn ? KingW : KingD;
-        int3 storedPosition = currentKing.chessPosition; // store the original position
-        board[currentKing.chessPosition.x, currentKing.chessPosition.y, currentKing.chessPosition.z] = null;
-        board[pos.x, pos.y, pos.z] = currentKing;
-        currentKing.chessPosition = pos; // set the piece to the new position
-        bool isSafe = IsKingSafe(board);
-        currentKing.chessPosition = storedPosition;
-        return isSafe;
-
-    }
-
-    private bool IsKingSafe(MoveableObject[,,] board) // if the position is threatened by any opponent piece
-    {
-        foreach (var piece in board)
-        {
-            if (piece == null || piece.CompareTag("White") && isWhiteTurn || piece.CompareTag("Dark") && !isWhiteTurn)
-                continue;
-
-            HashSet<int3> pieceMoveables = new HashSet<int3>();
-            HashSet<int3> pieceEatables = new HashSet<int3>();
-            string type = piece.name.Split(' ')[0];
-            if (type == "Rook" || type == "Queen")
-                FindVerticalMoves(board, piece, pieceMoveables, pieceEatables);
-            if (type == "Bishop" || type == "Queen")
-                FindDiagonalMoves(board, piece, pieceMoveables, pieceEatables);
-            else
-                FindNonBlockableMoves(board, piece, pieceMoveables, pieceEatables, true);
-
-            int3 kingPosition = isWhiteTurn ? KingW.chessPosition : KingD.chessPosition;
-            if (pieceEatables.Contains(kingPosition))
-                return false; // if the position is threatened by any opponent piece
-        }
-        return true;
 
     }
 
