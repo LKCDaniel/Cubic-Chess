@@ -47,9 +47,9 @@ public class CubeManager : MonoBehaviour
     private void CreateCube(int x, int y, int z, bool isRed, bool isOrange = false)
 
     {
-        float sep = GameManager.Instance.separation;
+        float sep = BoardManager.Instance.separation;
         Vector3 p = new Vector3(x * sep - 1.5f * sep, y * sep - 1.5f * sep, z * sep - 1.5f * sep);
-        if (GameManager.Instance.isWhiteOnTop)
+        if (BoardManager.Instance.isWhiteOnTop)
             p = new Vector3(-p.x, -p.y, p.z);
         GameObject cubePrefab = isOrange ? orangeCubePrefab : (isRed ? redCubePrefab : greenCubePrefab);
         GameObject cube = Instantiate(cubePrefab, p, Quaternion.identity);

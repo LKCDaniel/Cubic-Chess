@@ -24,6 +24,7 @@ public class MoveableObject : MonoBehaviour
 
     public void SetChessPosition(int3 position)
     {
+        GetComponent<Collider>().enabled = true;
         chessPosition = position;
         transform.position = TargetPosition(position);
     }
@@ -38,9 +39,9 @@ public class MoveableObject : MonoBehaviour
 
     private Vector3 TargetPosition(int3 p)
     {
-        float sep = GameManager.Instance.separation;
+        float sep = BoardManager.Instance.separation;
         Vector3 position = new Vector3(p.x * sep - 1.5f * sep, p.y * sep - 1.5f * sep, p.z * sep - 1.5f * sep);
-        if (GameManager.Instance.isWhiteOnTop)
+        if (BoardManager.Instance.isWhiteOnTop)
             position = new Vector3(-position.x, -position.y, position.z);
         position.y += yOffset; // Adjust the height based on yOffset
         return position;
@@ -51,7 +52,7 @@ public class MoveableObject : MonoBehaviour
     public void MoveTo(int3 newPosition, System.Action onComplete = null)
     {
         chessPosition = newPosition;
-        StartCoroutine(MoveCoroutine(TargetPosition(newPosition), GameManager.Instance.pieceMoveTime, onComplete));
+        StartCoroutine(MoveCoroutine(TargetPosition(newPosition), BoardManager.Instance.pieceMoveTime, onComplete));
 
         IEnumerator MoveCoroutine(Vector3 targetPosition, float duration, System.Action onComplete)
         {
@@ -73,10 +74,10 @@ public class MoveableObject : MonoBehaviour
     public void PieceEaten(Vector3 targetPosition)
     {
         GetComponent<Collider>().enabled = false;
-        StartCoroutine(FadeCoroutine(GameManager.Instance.pieceMoveTime, () =>
+        StartCoroutine(FadeCoroutine(BoardManager.Instance.pieceMoveTime, () =>
         {
             transform.position = targetPosition;
-            StartCoroutine(EmergeCoroutine(GameManager.Instance.pieceMoveTime));
+            StartCoroutine(EmergeCoroutine(BoardManager.Instance.pieceMoveTime));
         }));
 
         // Fade to transparent
@@ -115,7 +116,7 @@ public class MoveableObject : MonoBehaviour
 
     // public void UpsideDown()
     // {
-    //     StartCoroutine(UpsideDownCoroutine(upsideDown? -90 : 90, GameManager.Instance.pieceMoveTime));
+    //     StartCoroutine(UpsideDownCoroutine(upsideDown? -90 : 90, BoardManager.Instance.pieceMoveTime));
     //     upsideDown = !upsideDown;
 
     //     IEnumerator UpsideDownCoroutine(float targetAngle, float duration)
@@ -137,7 +138,7 @@ public class MoveableObject : MonoBehaviour
 
     public void RevolveAlongAxisZ(System.Action onComplete = null) // Revolve around the Z-axis
     {
-        StartCoroutine(RotateCoroutine(GameManager.Instance.cameraMoveTime, onComplete));
+        StartCoroutine(RotateCoroutine(BoardManager.Instance.cameraMoveTime, onComplete));
 
         IEnumerator RotateCoroutine(float duration, System.Action onComplete)
         {

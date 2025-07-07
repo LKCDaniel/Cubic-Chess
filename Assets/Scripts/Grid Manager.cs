@@ -23,7 +23,7 @@ public class GridManager : MonoBehaviour
             {
                 for (int z = 0; z < 4; z++)
                 {
-                    float sep = GameManager.Instance.separation;
+                    float sep = BoardManager.Instance.separation;
                     Vector3 position = new Vector3(x * sep - 1.5f * sep, y * sep - 2 * sep, z * sep - 1.5f * sep);
                     GameObject prefab;
                     prefab = ((x + y + z) % 2 == 0) ? whiteGridPrefab : darkGridPrefab;

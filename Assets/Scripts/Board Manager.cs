@@ -1,15 +1,13 @@
 using UnityEngine;
-using UnityEngine.InputSystem;
 using System.Collections.Generic;
 using Unity.Mathematics;
 using static UnityEngine.Mathf;
-using System.Collections;
-using System;
 using System.Linq;
+using System;
 
-public class GameManager : MonoBehaviour
+public class BoardManager : MonoBehaviour
 {
-    public static GameManager Instance;
+    public static BoardManager Instance;
     private void Awake()
     {
         if (Instance != null)
@@ -20,42 +18,27 @@ public class GameManager : MonoBehaviour
 
     // ------------------------------------ Game Variables -------------------------------------------------------------------
 
-    // Game states
-    public enum GameState { Entry, Paused, Running, End }
-    public GameState CurrentState { get; private set; }
-
     // Animation durations
     [Header("Animation Durations")]
     public float pieceMoveTime;
     public float entryTime, cameraMoveTime;
 
-    // Interaction variables
-    [Header("Camera Control Settings")]
-    public float mouseSensitivity;
-    public float scrollSensitivity, clickTolerance;
-    public float keyZoomSpeed, keyThetaSpeed, keyPhiSpeed;
-    public float minPhi, maxPhi, minRadius, maxRadius;
-    private bool isDraggingCamera;
-    private Vector2 lastMousePosition, initialMousePosition;
-
-    // Sphere coordinate variables
-    [Header("Initial Camera Position")]
-    public float initRadius;
-    public float initTheta, initPhi; // initial horizontal angle 0-360, vertical angle
-    public float cameraYOffset; // camera height offset
-    private float radius, theta, phi; // current camera angles
-    private float storedRadius, storedTheta, storedPhi; // store white and dark camera angles
-
     // chess board, game variables
     [Header("Chess Board Settings")]
     public float separation; // separation between chess pieces
-    private MoveableObject[,,] chessBoard; // 4*4*4, X from L to R, Y from B to T, Z from F to B
-    private MoveableObject pointedPiece, selectedPiece;
-    private Cube pointedCube;
-    private bool isWhiteTurn, isRevolvedWhite, isRevolvedDark; // Normally, the player starts from the bottom
+    public MoveableObject[,,] chessBoard; // 4*4*4, X from L to R, Y from B to T, Z from F to B
+    [HideInInspector]
+    public MoveableObject selectedPiece;
+    [HideInInspector]
+    public bool isLocal2P; // is it a local 2-player game
+    public bool isGameOver { get; private set; } // is the game over
+    public bool isWhiteTurn { get; private set; } // is it white's turn
+    [HideInInspector]
+    public bool isRevolvedWhite, isRevolvedDark; // Normally, the player starts from the bottom
     public bool isWhiteOnTop => isWhiteTurn && isRevolvedWhite || !isWhiteTurn && !isRevolvedDark;
     private int whiteEats, darkEats;
-    public bool inTransition { get; private set; } // Is a piece currently moving
+    [HideInInspector]
+    public bool inTransition; // Is a piece currently moving
 
     // keep a record of every move
     private class MoveRecord
@@ -165,179 +148,9 @@ public class GameManager : MonoBehaviour
         foreach (var pawn in new[] { PawnD1, PawnD2, PawnD3, PawnD4, PawnD5, PawnD6, PawnD7, PawnD8 })
             pawn.isPawnDark2White = true;
 
-        ChangeState(GameState.Entry);
-
     }
 
-    // ------------------------------------ Game Flow -------------------------------------------------------------------
-
-    void Update()
-    {
-        KeyboardControl();
-        if (CurrentState == GameState.Running)
-            PointerControl();
-    }
-
-    public void ChangeState(GameState newState)
-    {
-        CurrentState = newState;
-        switch (CurrentState)
-        {
-            case GameState.Entry:
-                Debug.Log("Game is starting");
-                inTransition = true;
-                UIManager.Instance.FadeShade();
-                ShiftCamera(initRadius, initTheta, initPhi, entryTime, () =>
-                {
-                    inTransition = false;
-                    radius = storedRadius = initRadius;
-                    theta = storedTheta = initTheta;
-                    phi = storedPhi = initPhi;
-                    ChangeState(GameState.Running);
-                });
-                break;
-
-            case GameState.Paused:
-                Debug.Log("Game is paused");
-                Time.timeScale = 0; // pause the game
-                UIManager.Instance.SetShade(0.5f); // show the shade
-                break;
-
-            case GameState.Running:
-                Debug.Log("Game is running");
-                Time.timeScale = 1; // resume the game
-                UIManager.Instance.SetShade(0f); // show the shade
-                break;
-
-            case GameState.End:
-                Debug.Log("Game over!");
-                UIManager.Instance.GameFinish(!isWhiteTurn);
-                break;
-        }
-
-    }
-
-    // ------------------------------------ Inputs -------------------------------------------------------------------
-
-    private void KeyboardControl()
-    {
-        // onclick pause button
-        if (Keyboard.current.escapeKey.wasPressedThisFrame)
-            UIManager.Instance.PauseOnClick();
-
-        if (Keyboard.current == null || CurrentState != GameState.Running) return;
-
-        // zoom camera: R, F
-        if (Keyboard.current.rKey.isPressed)
-            radius -= keyZoomSpeed * Time.deltaTime;
-
-        if (Keyboard.current.fKey.isPressed)
-            radius += keyZoomSpeed * Time.deltaTime;
-
-        // rotate camera: A, D, W, S or Arrow keys
-        if (Keyboard.current.leftArrowKey.isPressed || Keyboard.current.aKey.isPressed)
-            theta -= keyThetaSpeed * Time.deltaTime;
-
-        if (Keyboard.current.rightArrowKey.isPressed || Keyboard.current.dKey.isPressed)
-            theta += keyThetaSpeed * Time.deltaTime;
-
-        if (Keyboard.current.upArrowKey.isPressed || Keyboard.current.wKey.isPressed)
-            phi -= keyPhiSpeed * Time.deltaTime;
-
-        if (Keyboard.current.downArrowKey.isPressed || Keyboard.current.sKey.isPressed)
-            phi += keyPhiSpeed * Time.deltaTime;
-
-        MoveCamera();
-
-    }
-
-    private void PointerControl()
-    {
-        // find the pointing cube/piece, set highlights
-        if (pointedPiece != null)
-        {
-            pointedPiece.SetHighLight(false);
-            pointedPiece = null;
-        }
-        if (pointedCube != null)
-        {
-            pointedCube.SetEnlargeCube(false);
-            pointedCube = null;
-        }
-        if (selectedPiece != null)
-            selectedPiece.SetHighLight(!inTransition);
-
-        if (!inTransition)
-        {
-            Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue()); // use a ray at the pointer's position
-            if (Physics.Raycast(ray, out RaycastHit hit)) // Pointing to piece or cube
-            {
-                if (hit.collider.CompareTag("Green") || hit.collider.CompareTag("Red")) // if pointing to a cube
-                {
-                    pointedCube = hit.collider.GetComponent<Cube>();
-                    pointedCube.SetEnlargeCube(true);
-                }
-                else if (hit.collider.CompareTag("White") && isWhiteTurn || hit.collider.CompareTag("Dark") && !isWhiteTurn)
-                {
-                    pointedPiece = hit.collider.GetComponent<MoveableObject>();
-                    pointedPiece.SetHighLight(true);
-                }
-            }
-        }
-
-        // Camera dragging or selecting piece
-        if (isDraggingCamera) // is dragging the camera
-        {
-            Vector2 currentMousePosition = Mouse.current.position.ReadValue();
-            Vector2 delta = currentMousePosition - lastMousePosition;
-            theta -= delta.x * mouseSensitivity;
-            phi += delta.y * mouseSensitivity;
-            MoveCamera();
-            lastMousePosition = currentMousePosition;
-        }
-        else if (Mouse.current.leftButton.wasPressedThisFrame) // just pressed the left button
-        {
-            isDraggingCamera = true;
-            lastMousePosition = initialMousePosition = Mouse.current.position.ReadValue();
-        }
-
-        if (Mouse.current.leftButton.wasReleasedThisFrame) // just released the left button
-        {
-            isDraggingCamera = false;
-            float mouseDragDistance = Vector2.Distance(initialMousePosition, Mouse.current.position.ReadValue());
-            if (mouseDragDistance <= clickTolerance && !inTransition) // this is a click event
-            {
-                if (selectedPiece != null)
-                    selectedPiece.SetHighLight(false);
-
-                if (pointedPiece != null) // if a piece is clicked, and if the color is right, select the new piece
-                {
-                    if (pointedPiece.CompareTag("White") && isWhiteTurn || pointedPiece.CompareTag("Dark") && !isWhiteTurn)
-                    {
-                        selectedPiece = pointedPiece;
-                        GetPotentialMoves(selectedPiece);
-                    }
-                }
-                else // click at a cube or nothing
-                {
-                    if (pointedCube != null) // if a cube is clicked, make a move
-                    {
-                        Move(pointedCube.chessPosition.x, pointedCube.chessPosition.y, pointedCube.chessPosition.z,
-                            selectedPiece.name.Split(" ")[0] == "Pawn" &&
-                            (selectedPiece.isPawnDark2White && pointedCube.chessPosition.y == 0 || !selectedPiece.isPawnDark2White && pointedCube.chessPosition.y == 3));
-                    }
-                    else if (selectedPiece != null)
-                        selectedPiece = null;
-                    CubeManager.Instance.ClearMoveableCubes();
-                }
-            }
-        }
-
-    }
-
-    // ------------------------------------ Executions -------------------------------------------------------------------
-
-    private void GetPotentialMoves(MoveableObject piece, HashSet<int3> storeMoveables = null, HashSet<int3> storeEatables = null, bool showCubes = true)
+    public void GetPiecePotentialMoves(MoveableObject piece, HashSet<int3> storeMoveables = null, HashSet<int3> storeEatables = null, bool showCubes = true)
     {
         HashSet<int3> moveables = new HashSet<int3>();
         HashSet<int3> eatables = new HashSet<int3>();
@@ -383,8 +196,11 @@ public class GameManager : MonoBehaviour
 
     }
 
-    private void Move(int x, int y, int z, bool isPromotion = false)
+    public void Move(int x, int y, int z, bool isPromotion, string promoteType = null, Action onComplete = null)
     {
+        Debug.Log($"Step {currentStep}: Moving piece from {selectedPiece.chessPosition} to {new int3(x, y, z)}");
+        if (isPromotion)
+            Debug.Log($"Promoting to {promoteType}");
         CubeManager.Instance.ClearWarningCube();
         int3 fromPosition = selectedPiece.chessPosition;
 
@@ -397,7 +213,7 @@ public class GameManager : MonoBehaviour
             sidePosition.y = -4.5f;
             if (isWhiteTurn)
             {
-                sidePosition.x = (darkEats < 8) ? (4 * separation) : (4.5f * separation);
+                sidePosition.x = (whiteEats < 8) ? (4 * separation) : (4.5f * separation);
                 sidePosition.z = (-3.5f + whiteEats % 8) * separation / 2;
                 whiteEats++;
             }
@@ -416,21 +232,33 @@ public class GameManager : MonoBehaviour
         if (isPromotion) // if a pawn reaches edge, promote it
         {
             selectedPiece.MoveTo(new int3(x, y, z), () =>
-                StartCoroutine(UIManager.Instance.SetPromotionTypeCoroutine((newType) =>
+            {
+                if (promoteType == null) // if it's a local 2-player game, ask the user to select a promotion type
+                {
+                    StartCoroutine(UIManager_Local2P.Instance.SetPromotionTypeCoroutine((newType) =>
+                    {
+                        selectedPiece.gameObject.SetActive(false); // hide the pawn
+                        promotedPiece = Instantiate(Resources.Load<GameObject>($"Prefabs/{newType + (isWhiteTurn ? " White" : " Dark")}")).GetComponent<MoveableObject>();
+                        promotedPiece.SetChessPosition(new int3(x, y, z));
+                        chessBoard[x, y, z] = promotedPiece;
+                        SwitchTurn();
+                    }));
+                }
+                else
                 {
                     selectedPiece.gameObject.SetActive(false); // hide the pawn
-                    promotedPiece = Instantiate(Resources.Load<GameObject>($"Prefabs/{newType + (isWhiteTurn ? " White" : " Dark")}")).GetComponent<MoveableObject>();
+                    promotedPiece = Instantiate(Resources.Load<GameObject>($"Prefabs/{promoteType + (isWhiteTurn ? " White" : " Dark")}")).GetComponent<MoveableObject>();
                     promotedPiece.SetChessPosition(new int3(x, y, z));
                     chessBoard[x, y, z] = promotedPiece;
                     SwitchTurn();
-                })));
+                }
+            });
         }
         else
         {
             chessBoard[x, y, z] = selectedPiece;
             selectedPiece.MoveTo(new int3(x, y, z), SwitchTurn);
         }
-
 
         // switch player's turn
         void SwitchTurn()
@@ -457,16 +285,16 @@ public class GameManager : MonoBehaviour
             foreach (var piece in chessBoard)
             {
                 if (piece != null && piece.CompareTag(isWhiteTurn ? "White" : "Dark"))
-                    GetPotentialMoves(piece, allMoves, allEats, false);
+                    GetPiecePotentialMoves(piece, allMoves, allEats, false);
             }
             if (allMoves.Count == 0 && allEats.Count == 0)
             {
-                ChangeState(GameState.End);
+                isGameOver = true;
                 return;
             }
 
             // transition
-            if (isRevolvedWhite == isRevolvedDark)
+            if (isRevolvedWhite == isRevolvedDark && isLocal2P)
                 RevolveBoard();
             else
             {
@@ -475,51 +303,58 @@ public class GameManager : MonoBehaviour
                 if (isWhiteTurn && !IsKingSafeAtPosition(KingW.chessPosition) || !isWhiteTurn && !IsKingSafeAtPosition(KingD.chessPosition))
                     CubeManager.Instance.SetWarningCube(isWhiteTurn ? KingW.chessPosition : KingD.chessPosition);
             }
-            ShiftCamera(storedRadius, storedTheta, storedPhi, cameraMoveTime);
+            onComplete?.Invoke();
+            if (isLocal2P)
+                CameraManager.Instance.SwitchCamera(cameraMoveTime);
         }
 
     }
 
-    public void UndoStep()
+    public void Undo(int step = 1)
     {
-        if (currentStep == 0)
-            return;
-        isWhiteTurn = !isWhiteTurn;
-        MoveRecord previous = records[--currentStep];
-        Debug.Log($"Undoing step {currentStep}: {previous.movedPiece.name} from {previous.fromPosition} to {previous.toPosition}");
-
-        if (previous.promotedPiece != null) // if a piece was promoted, restore the pawn
+        for (int i = 0; i < step; i++)
         {
-            Destroy(previous.promotedPiece.gameObject); // destroy the promoted piece
-            previous.movedPiece.gameObject.SetActive(true); // activate the pawn
-        }
-        if (previous.eatenPiece != null) // if the eaten piece exists, restore its position
-            previous.eatenPiece.SetChessPosition(previous.toPosition);
+            isWhiteTurn = !isWhiteTurn;
+            MoveRecord previous = records[--currentStep];
+            Debug.Log($"Undoing step {currentStep}: {previous.movedPiece.name} from {previous.fromPosition} to {previous.toPosition}");
 
-        previous.movedPiece.SetChessPosition(previous.fromPosition); // move the piece back to the original position
-        chessBoard[previous.fromPosition.x, previous.fromPosition.y, previous.fromPosition.z] = previous.movedPiece;
-        chessBoard[previous.toPosition.x, previous.toPosition.y, previous.toPosition.z] = previous.eatenPiece;
-
-        for (int x = 0; x < 4; x++)
-        {
-            for (int y = 0; y < 4; y++)
+            if (previous.promotedPiece != null) // if a piece was promoted, restore the pawn
             {
-                for (int z = 0; z < 4; z++)
+                Destroy(previous.promotedPiece.gameObject); // destroy the promoted piece
+                previous.movedPiece.gameObject.SetActive(true); // activate the pawn
+            }
+            if (previous.eatenPiece != null) // if the eaten piece exists, restore its position
+            {
+                previous.eatenPiece.SetChessPosition(previous.toPosition);
+                if (isWhiteTurn)
+                    whiteEats--;
+                else
+                    darkEats--;
+            }
+
+            previous.movedPiece.SetChessPosition(previous.fromPosition); // move the piece back to the original position
+            chessBoard[previous.fromPosition.x, previous.fromPosition.y, previous.fromPosition.z] = previous.movedPiece;
+            chessBoard[previous.toPosition.x, previous.toPosition.y, previous.toPosition.z] = previous.eatenPiece;
+
+            for (int x = 0; x < 4; x++)
+            {
+                for (int y = 0; y < 4; y++)
                 {
-                    if (chessBoard[x, y, z] != null)
-                        chessBoard[x, y, z].SetChessPosition(new int3(x, y, z));
+                    for (int z = 0; z < 4; z++)
+                    {
+                        if (chessBoard[x, y, z] != null)
+                            chessBoard[x, y, z].SetChessPosition(new int3(x, y, z));
+                    }
                 }
             }
         }
+        // if king is threatened
+        CubeManager.Instance.ClearMoveableCubes();
+        if (isWhiteTurn && !IsKingSafeAtPosition(KingW.chessPosition) || !isWhiteTurn && !IsKingSafeAtPosition(KingD.chessPosition))
+            CubeManager.Instance.SetWarningCube(isWhiteTurn ? KingW.chessPosition : KingD.chessPosition);
 
-        // reset the camera
-        float r = radius = storedRadius;
-        float t = theta = storedTheta;
-        float p = phi = storedPhi;
-        MoveCamera();
-        storedRadius = r;
-        storedTheta = t;
-        storedPhi = p;
+        if (isLocal2P && step % 2 == 1)
+            CameraManager.Instance.SwitchCamera(cameraMoveTime / 2); // switch camera to the previous position
 
     }
 
@@ -554,65 +389,11 @@ public class GameManager : MonoBehaviour
                         if (isWhiteTurn && !IsKingSafeAtPosition(KingW.chessPosition) || !isWhiteTurn && !IsKingSafeAtPosition(KingD.chessPosition))
                             CubeManager.Instance.SetWarningCube(isWhiteTurn ? KingW.chessPosition : KingD.chessPosition);
                         if (selectedPiece != null)
-                            GetPotentialMoves(selectedPiece);
+                            GetPiecePotentialMoves(selectedPiece);
                     }
                 });
             }
         }
-
-
-
-    }
-
-    // ------------------------------------ Camera Movements -------------------------------------------------------------------
-
-    private void ShiftCamera(float targetRadius, float targetTheta, float targetPhi, float duration, Action onComplete = null)
-    {
-        StartCoroutine(MoveCameraCoroutine(targetRadius, targetTheta, targetPhi, duration, onComplete));
-        storedRadius = radius;
-        storedTheta = theta;
-        storedPhi = phi;
-
-        IEnumerator MoveCameraCoroutine(float targetRadius, float targetTheta, float targetPhi, float duration, Action onComplete)
-        {
-            Vector3 startPosition = Camera.main.transform.position;
-            float elapsedTime = 0;
-            float beginRadius = radius;
-            float beginTheta = theta;
-            float beginPhi = phi;
-            float deltaTheta = targetTheta - theta;
-            if (deltaTheta > 180) deltaTheta -= 360;
-            else if (deltaTheta < -180) deltaTheta += 360;
-
-            while (elapsedTime < duration)
-            {
-                float time = SmoothStep(0, 1, elapsedTime / duration);
-                radius = Lerp(beginRadius, targetRadius, time);
-                theta = Lerp(0, deltaTheta, time) + beginTheta;
-                phi = Lerp(beginPhi, targetPhi, time);
-                MoveCamera();
-                elapsedTime += Time.deltaTime;
-                yield return null;
-            }
-            radius = targetRadius;
-            theta = targetTheta;
-            phi = targetPhi;
-            MoveCamera();
-            onComplete?.Invoke();
-        }
-
-    }
-
-    private void MoveCamera()
-    {
-        radius = Clamp(radius, minRadius, maxRadius);
-        theta %= 360;
-        phi = Clamp(phi, minPhi, maxPhi);
-        float x = radius * Sin(phi * Deg2Rad) * Cos(theta * Deg2Rad);
-        float y = radius * Cos(phi * Deg2Rad);
-        float z = radius * Sin(phi * Deg2Rad) * Sin(theta * Deg2Rad);
-        Camera.main.transform.position = new Vector3(x, y + cameraYOffset, z);
-        Camera.main.transform.LookAt(new Vector3(0, cameraYOffset, 0));
 
     }
 

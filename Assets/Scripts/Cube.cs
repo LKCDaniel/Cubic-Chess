@@ -9,8 +9,8 @@ public class Cube : MonoBehaviour
 
     void Start()
     {
-        smallSize = 0.8f * GameManager.Instance.separation * Vector3.one;
-        largeSize = 0.9f * GameManager.Instance.separation * Vector3.one;
+        smallSize = 0.8f * BoardManager.Instance.separation * Vector3.one;
+        largeSize = 0.9f * BoardManager.Instance.separation * Vector3.one;
         transform.localScale = smallSize;
         colliderSize = GetComponent<BoxCollider>().size;
     }
