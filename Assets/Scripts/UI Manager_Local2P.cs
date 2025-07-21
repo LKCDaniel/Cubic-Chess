@@ -2,6 +2,8 @@ using System.Collections;
 using UnityEngine.UI;
 using UnityEngine;
 using TMPro;
+using UnityEditor.SearchService;
+using UnityEngine.SceneManagement;
 
 public class UIManager_Local2P : MonoBehaviour
 {
@@ -15,12 +17,13 @@ public class UIManager_Local2P : MonoBehaviour
     }
 
     private GameManager_Local2P.GameState previousState;
-    public GameObject pauseButton, undoButton, revolveButton, drawButton, shade, PawnPromotionPanel, Description;
+    public GameObject pauseButton, undoButton, revolveButton, drawButton, exitButton, shade, PawnPromotionPanel, Description;
     private string pawnPromotionType;
 
     void Start()
     {
         PawnPromotionPanel.SetActive(false);
+        exitButton.SetActive(false);
     }
 
     void Update()
@@ -47,6 +50,7 @@ public class UIManager_Local2P : MonoBehaviour
     {
         if (GameManager_Local2P.Instance.CurrentState == GameManager_Local2P.GameState.Paused)
         {
+            exitButton.SetActive(false);
             Debug.Log("Resume game.");
             GameManager_Local2P.Instance.ChangeState(previousState);
             shade.GetComponent<Image>().color = new Color(0, 0, 0, 0);
@@ -54,6 +58,7 @@ public class UIManager_Local2P : MonoBehaviour
         else
         {
             Debug.Log("Pause game.");
+            exitButton.SetActive(true);
             previousState = GameManager_Local2P.Instance.CurrentState;
             GameManager_Local2P.Instance.ChangeState(GameManager_Local2P.GameState.Paused);
             shade.GetComponent<Image>().color = new Color(0, 0, 0, 0.5f);
@@ -63,6 +68,8 @@ public class UIManager_Local2P : MonoBehaviour
     public void RevolveOnClick() { BoardManager.Instance.RevolveBoard(true); }
 
     public void DrawOnClick() => GameFinish(2);
+
+    public void ExitOnClick() => SceneManager.LoadScene("Welcome");
 
     public void GameFinish(int outcome) // 0: Dark, 1: White, 2: Draw
     {

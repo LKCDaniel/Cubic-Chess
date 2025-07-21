@@ -1,0 +1,120 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5b11a58205ec3474ca216360e9fa74a8, type: 3}
+  m_Name: LocalizationTable Shared Data
+  m_EditorClassIdentifier: 
+  m_TableCollectionName: LocalizationTable
+  m_TableCollectionNameGuidString: ce44b9bbd0cea48798b1fd749d4bcb67
+  m_Entries:
+  - m_Id: 1837322199040
+    m_Key: Welcome/Canvas/Local2P Button/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 7610379001856
+    m_Key: Welcome/Canvas/Robot Button/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 7789366730752
+    m_Key: Welcome/Canvas/Play White Toggle/Label
+    m_Metadata:
+      m_Items: []
+  - m_Id: 8020657430528
+    m_Key: Welcome/Canvas/Difficulty Dropdown
+    m_Metadata:
+      m_Items: []
+  - m_Id: 8035320717312
+    m_Key: Welcome/Canvas/Difficulty Dropdown 1
+    m_Metadata:
+      m_Items: []
+  - m_Id: 8046188158976
+    m_Key: Welcome/Canvas/Difficulty Dropdown 2
+    m_Metadata:
+      m_Items: []
+  - m_Id: 27866686283776
+    m_Key: Local2P/Canvas/Pause Button/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 27930922049536
+    m_Key: Local2P/Canvas/Undo Button/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 27974920298496
+    m_Key: Local2P/Canvas/Revolve Button/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 28035909672960
+    m_Key: Local2P/Canvas/Draw Button/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 28161877204992
+    m_Key: Local2P/Canvas/Panel/Queen/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 28215329415168
+    m_Key: Local2P/Canvas/Panel/Bishop/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 28291967737856
+    m_Key: Local2P/Canvas/Panel/Knight/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 28315225153536
+    m_Key: Local2P/Canvas/Panel/Rook/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 28432636305408
+    m_Key: Robot/Canvas/Panel/Queen/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 28472884846592
+    m_Key: Robot/Canvas/Panel/Bishop/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 28496544915456
+    m_Key: Robot/Canvas/Panel/Knight/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 28510637776896
+    m_Key: Robot/Canvas/Panel/Rook/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 28533115052032
+    m_Key: Robot/Canvas/Draw Button/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 28553130270720
+    m_Key: Robot/Canvas/Revolve Button/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 28608641884160
+    m_Key: Robot/Canvas/Undo Button/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 28635724505088
+    m_Key: Robot/Canvas/Pause Button/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  - m_Id: 69493253464064
+    m_Key: Local2P/Canvas/Exit Button/Text (TMP)
+    m_Metadata:
+      m_Items: []
+  m_Metadata:
+    m_Items: []
+  m_KeyGenerator:
+    rid: 8216866377317220620
+  references:
+    version: 2
+    RefIds:
+    - rid: 8216866377317220620
+      type: {class: DistributedUIDGenerator, ns: UnityEngine.Localization.Tables, asm: Unity.Localization}
+      data:
+        m_CustomEpoch: 1753070422245
