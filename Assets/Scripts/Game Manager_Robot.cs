@@ -15,6 +15,11 @@ public class GameManager_Robot : MonoBehaviour
         else
             Instance = this;
     }
+    
+    private void OnDestroy()
+    {
+        Time.timeScale = 1;
+    }
 
     // Game states
     public enum GameState { Entry, Paused, PlayerTurn, RobotTurn, End }

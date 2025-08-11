@@ -6,11 +6,11 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/Local2P.unity
-    guid: 99c9720ab356a0642a771bea13969a05
-  - enabled: 1
     path: Assets/Scenes/Welcome.unity
     guid: 7a875a59e34344ab59ae68139b0b05e1
+  - enabled: 1
+    path: Assets/Scenes/Local2P.unity
+    guid: 99c9720ab356a0642a771bea13969a05
   - enabled: 1
     path: Assets/Scenes/Robot.unity
     guid: cbc76c7800496423d9022d6e5ad177e6

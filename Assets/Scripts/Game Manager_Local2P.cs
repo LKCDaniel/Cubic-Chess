@@ -12,6 +12,11 @@ public class GameManager_Local2P : MonoBehaviour
             Instance = this;
     }
 
+    private void OnDestroy()
+    {
+        Time.timeScale = 1; // reset time scale when the game manager is destroyed
+    }
+
     // Game states
     public enum GameState { Entry, Paused, Running, End }
     public GameState CurrentState { get; private set; }
@@ -181,7 +186,7 @@ public class GameManager_Local2P : MonoBehaviour
                         pointedPiece.CompareTag("Dark") && !BoardManager.Instance.isWhiteTurn)
                     {
                         BoardManager.Instance.selectedPiece = pointedPiece;
-                        BoardManager.Instance.GetPiecePotentialMoves(selectedPiece);
+                        BoardManager.Instance.GetPiecePotentialMoves(BoardManager.Instance.selectedPiece);
                     }
                 }
                 else // click at a cube or nothing
