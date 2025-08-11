@@ -3,7 +3,6 @@ using UnityEngine.UI;
 using UnityEngine;
 using TMPro;
 using UnityEngine.SceneManagement;
-using UnityEditor.Localization.Plugins.XLIFF.V12;
 
 public class UIManager_Robot : MonoBehaviour
 {

@@ -15,6 +15,7 @@ MonoBehaviour:
   m_StartupSelectors:
   - rid: 8216866380267913515
   - rid: 8216866380267913516
+  - rid: 7361287735265722612
   m_AvailableLocales:
     rid: 8216866377317220591
   m_AssetDatabase:
@@ -32,6 +33,10 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
+    - rid: 7361287735265722612
+      type: {class: CommandLineLocaleSelector, ns: UnityEngine.Localization.Settings, asm: Unity.Localization}
+      data:
+        m_CommandLineArgument: -language=
     - rid: 8216866377317220591
       type: {class: LocalesProvider, ns: UnityEngine.Localization.Settings, asm: Unity.Localization}
       data: 
