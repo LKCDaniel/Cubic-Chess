@@ -2,8 +2,7 @@
 
 A three-dimensional chess game built with Unity, featuring innovative 4×4×4 cubic gameplay mechanics that extend traditional chess into 3D space.
 
-![Uploading 31f2604a742197eb86f830dd43dff1c0.png…]()
-
+<img width="1672" height="936" alt="063589ae28a159028881faaad5179686" src="https://github.com/user-attachments/assets/4afde8b5-d43c-4f35-8a57-0be4f76ee663" />
 
 ## 🎮 Features
 
