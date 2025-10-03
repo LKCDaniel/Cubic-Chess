@@ -20,6 +20,9 @@ public class MoveableObject : MonoBehaviour
         transform.rotation = Quaternion.Euler(initRotation);
         material = GetComponent<Renderer>().material;
         material.SetInt("_ZWrite", 1); // force depth write, avoid abnormal rendering of transparent objects
+
+        material.EnableKeyword("_EMISSION");
+        material.DisableKeyword("_EMISSION");
     }
 
     public void SetChessPosition(int3 position)

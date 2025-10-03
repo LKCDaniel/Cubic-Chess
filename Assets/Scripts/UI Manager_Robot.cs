@@ -79,6 +79,7 @@ public class UIManager_Robot : MonoBehaviour
         else
             Description.GetComponent<TMP_Text>().text = outcome == 1 ? "White wins!" : "Black wins!";
         GameManager_Robot.Instance.outcome = outcome;
+        exitButton.SetActive(true);
         if (GameManager_Robot.Instance.CurrentState != GameManager_Robot.GameState.End)
             GameManager_Robot.Instance.ChangeState(GameManager_Robot.GameState.End);
     }

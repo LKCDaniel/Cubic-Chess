@@ -107,6 +107,10 @@ MonoBehaviour:
     m_Key: Local2P/Canvas/Exit Button/Text (TMP)
     m_Metadata:
       m_Items: []
+  - m_Id: 26866495807021056
+    m_Key: Welcome/Canvas/Game Name
+    m_Metadata:
+      m_Items: []
   m_Metadata:
     m_Items: []
   m_KeyGenerator:

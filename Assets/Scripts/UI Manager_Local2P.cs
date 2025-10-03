@@ -79,6 +79,7 @@ public class UIManager_Local2P : MonoBehaviour
         else
             Description.GetComponent<TMP_Text>().text = outcome == 1 ? "White wins!" : "Black wins!";
         GameManager_Local2P.Instance.outcome = outcome;
+        exitButton.SetActive(true);
         if (GameManager_Local2P.Instance.CurrentState != GameManager_Local2P.GameState.End)
             GameManager_Local2P.Instance.ChangeState(GameManager_Local2P.GameState.End);
     }

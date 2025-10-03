@@ -112,6 +112,10 @@ MonoBehaviour:
     m_Localized: Exit
     m_Metadata:
       m_Items: []
+  - m_Id: 26866495807021056
+    m_Localized: Cubic Chess
+    m_Metadata:
+      m_Items: []
   references:
     version: 2
     RefIds: []
