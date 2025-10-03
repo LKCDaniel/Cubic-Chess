@@ -12,6 +12,10 @@ https://github.com/user-attachments/assets/7dd87901-cfab-4abe-a92f-2b6e4a4f0f98
 <img width="836" height="455" alt="c5aaf419d6d07c1da05b2fe92de92c8c" src="https://github.com/user-attachments/assets/952c4754-3eba-49e0-8051-08c27b1d9f69" />
 
 
+## Note!
+The game is still under development and subject to incompleteness during gameplay. The **Hard** difficulty is the same as **medium**. 
+**Very happy if anyone wish to contribute/connect**
+
 ## 🎮 Features
 
 ### Game Modes
@@ -101,13 +105,9 @@ Assets/
 └── Settings/          # Game configuration
 ```
 
-## 🎨 Customization
-
-later haha
-
 ## 📝 License
 
-I'll add this later.
+Under application.
 
 ---
 
