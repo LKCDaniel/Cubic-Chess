@@ -14,27 +14,29 @@ https://github.com/user-attachments/assets/7dd87901-cfab-4abe-a92f-2b6e4a4f0f98
 
 The game is still under development and subject to incompleteness during gameplay. The **Hard** difficulty is the same as **medium**. **Very happy if anyone wish to contribute/connect**
 
-## 🚀 Future Vision: A Reinforcement Learning AI
+## 🚀 Future Development: Reinforcement Learning, Online Gaming
 
-I wish the next step for this game's development is to develop a **AI bot** to play this game through reinforcement learning: creating an AI that learns to master the game entirely through self-play.
+### Online Gaming
 
-This involves training a neural network using reinforcement learning, allowing the AI to discover complex, non-obvious strategies and achieve a level of play beyond what can be achieved with hand-coded rules.
+This game should be online, so that people can play with players all across the world. Currently this is just a single game.
 
-### The Roadmap
-The plan to achieve this is broken down into the following key stages:
+### AI bot
+I wish the next step for this game's development is to develop a **AI bot** to play this game through reinforcement learning: creating an AI that learns to master the game entirely through self-play. The plan to achieve this is broken down into the following key stages:
 
 1.  **Unity ML-Agents Integration**: The project will be integrated with the official **Unity ML-Agents Toolkit**, which provides the framework for training intelligent agents in a game environment.
 2.  **Defining the RL Environment**: We will configure the game to serve as a training environment. This involves defining the core components:
     * **Observations**: The board state will be converted into a numerical vector that the neural network can understand.
     * **Actions**: The AI's decisions (which piece to move and where) will be defined as the action space.
-    * **Rewards**: A simple and powerful reward signal will be used: `+1` for winning a game, `-1` for losing, and `0` for all other moves.
-3.  **Self-Play Training**: The core of the project will be to create a robust self-play training loop. The AI will play against itself millions of times, gradually improving from random moves to sophisticated, grandmaster-level strategy.
-4.  **Model Integration**: The final trained model (`.onnx` file) will be integrated back into the game as a new, formidable AI opponent in the "AI Robot" mode.
+    * **Rewards**: A system of reward signals is needed. For instance, '+1' for eating an opponent's piece, etc.
+3.  **Self-Play Training**: The core of the project will be to create a robust self-play training loop. The AI will play against itself, gradually improving from random moves to sophisticated, grandmaster-level strategy.
+4.  **Model Integration**: The final trained model will be integrated back into the game.
 
 ### 🤝 Join the Development!
 
 This is an ambitious but incredibly exciting project. I am actively looking for collaborators who are passionate about the intersection of game development and artificial intelligence. If you have experience or a strong interest in any of the following areas, I would love to hear from you:
 
+* **Unity Game Development, Online Gaming**
+* 
 * **Reinforcement Learning (RL)**
 * **Unity ML-Agents Toolkit**
 * **Game AI Architecture**
